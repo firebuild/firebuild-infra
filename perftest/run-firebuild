@@ -1,0 +1,11 @@
+#!/bin/bash
+
+fbdir="$1"
+shift
+
+export LD_LIBRARY_PATH=$(realpath "$fbdir/build/src/interceptor")
+export PATH=$(realpath "$fbdir/build/src/firebuild"):$PATH
+
+firebuild \
+  -c "$fbdir/etc/firebuild.conf" \
+  "$@"

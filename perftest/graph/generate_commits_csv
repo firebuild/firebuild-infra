@@ -1,0 +1,27 @@
+#!/usr/bin/python3
+
+# Copyright (c) 2020 Interri Kft.
+# This file is an unpublished work. All rights reserved.
+
+# Creates a CSV file describing the commits of the repository, which is
+# used for the annotations (thin vertical lines) in Grafana.
+#
+# Written in python to provide consistent escaping of the comma and
+# quotation mark characters with the rest of our tools.
+
+import csv
+import sys
+import os
+
+if len(sys.argv) != 2:
+  print("Usage: generate_commits_csv firebuild_dir")
+  sys.exit(1)
+
+fbdir = sys.argv[1]
+
+input = os.popen("git -C " + fbdir +  " log --format='format:%H %ct %s' HEAD")
+with open("commits.csv", "w") as csvfile:
+  writer = csv.writer(csvfile, lineterminator='\n')
+  for row in input:
+    hash, date, summary = row.strip().split(" ", 2)
+    writer.writerow([hash[:12], date, summary])

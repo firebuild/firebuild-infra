@@ -1,0 +1,200 @@
+#!/usr/bin/python3
+
+# Copyright (c) 2020 Interri Kft.
+# This file is an unpublished work. All rights reserved.
+
+# Usage: outer [-d|--debugging] [-f|--firebuild=/path/to/tree] [test [test ...]]
+#
+# This script runs either certain tests (given in the command line), or all of them
+# (if no such command line parameter given), as defined in tests.conf.
+#
+# For each test, an LXD container is built up by this script, satisfying the dependencies.
+#
+# Each test is then run by "inner" within its own container.
+#
+# The "-f DIR" (defaults to ~/firebuild) parameter needs to point to the topmost
+# directory of the checked out firebuild git tree. This will be copied into the
+# container and built there.
+#
+# Make sure to follow the steps from README_SETUP.txt before running this script.
+#
+# This script must be started from its containing directory.
+#
+# The version of firebuild used will be whichever version is checked out locally
+# (and possibly modified on top of that). This will be copied into the container
+# and built there, in Release or Debug mode depending on the "-d" flag.
+#
+# The result (timing data) is appended to ~/buildtimes.csv (on the outer host),
+# unless "-d" was specified.
+#
+# inner is run via "script" as wrapper, so its output is logged to
+# ~/firebuild-typescript-<testname>-<timestamp>. This log is deleted if the test
+# completes successfully.
+#
+# The container is deleted in case of success, and preserved (renamed to contain the
+# timestamp in its name) in case of failure.
+
+import argparse
+import os
+import sys
+import time
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument("-d", "--debugging",
+                    action="store_true",
+                    help="debugging firebuild (build it in Debug mode, skip non-firebuild build, don't record performance)")
+parser.add_argument("-f", "--firebuilddir",
+                    default="~/firebuild",
+                    help="root of the firebuild git tree, default is ~/firebuild",
+                    metavar="DIR")
+parser.add_argument("tests",
+                    nargs="*",
+                    help="name of the test to run, if none specified then run all the tests",
+                    metavar="TEST")
+args = parser.parse_args()
+
+fbdir = os.path.expanduser(args.firebuilddir)
+if not os.path.isdir(fbdir):
+  print('"' + fbdir + '" does not exist. Specify "-f DIR".', file=sys.stderr)
+  sys.exit(1)
+
+
+def debug(str):
+  print(" 🔹 " + str, file=sys.stderr, flush=True)
+
+
+# Convert exit status from Unix/Python-style (high byte: exit code, low byte: signum)
+# to shell-style (128 + signum if there was a signal).
+def shell_exit_status(status):
+  if os.WIFEXITED(status):
+    return os.WEXITSTATUS(status)
+  elif os.WIFSIGNALED(status):
+    return os.WTERMSIG(status)
+  else:
+    return 127
+
+
+def get_container_full_name(short_name):
+  return "firebuild-perftest-" + short_name.replace(".", "-").replace("+", "-")
+
+
+# Creates the container if necessary, starts it up, makes sure it's set up properly.
+# "short_name" is the name without the "firebuild-perftest-" prefix. Mustn't contain shell meta-characters.
+# "pkgs" are additional packages to install.
+# "build_deps" are source packages whose build dependencies are to be installed.
+def create_and_start_container(short_name, pkgs, build_deps):
+  name = get_container_full_name(short_name)
+
+  debug("Launching lxc instance «" + name + "»")
+  os.system("lxc launch -p firebuild-perftest firebuild-perftest-image-template " + name)
+
+  debug("Waiting for cloud-init")
+  os.system("lxc exec " + name + " -- cloud-init status --wait")
+
+  debug("Installing required packages")
+  os.system("lxc exec " + name + " -- eatmydata apt-get update")
+  if build_deps:
+    os.system("lxc exec --env DEBIAN_FRONTEND=noninteractive " + name + " -- eatmydata apt-get -y build-dep " + " ".join(build_deps))
+  if pkgs:
+    os.system("lxc exec --env DEBIAN_FRONTEND=noninteractive " + name + " -- eatmydata apt-get -y install " + " ".join(pkgs))
+
+  debug("Copying up the firebuild and fb-infra repos")
+  # "lxc file push --recursive" is too slow, cannot set the uid/gid, and cannot strip a directory component
+  os.system("tar c -C " + fbdir + " --transform=s@^[.]/@firebuild/@ . 2>/dev/null | lxc exec --user 1000 --group 1000 --cwd /home/ubuntu " + name + " -- tar x")
+  os.system("tar c -C .. --transform=s@^[.]/@fb-infra/@ . 2>/dev/null | lxc exec --user 1000 --group 1000 --cwd /home/ubuntu " + name + " -- tar x")
+
+  debug("Building firebuild")
+  os.system("lxc exec --user 1000 --group 1000 --cwd /home/ubuntu/firebuild " + name +
+            " -- sh -c 'git clean -dfx && mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=" +
+            ("Debug" if args.debugging else "Release") + " .. && make -j4'")
+
+
+# Retrieve the timing results
+def get_results(short_name):
+  name = get_container_full_name(short_name)
+  return os.popen("lxc exec " + name + " -- cat /home/ubuntu/buildtimes.csv 2>/dev/null").read()
+
+
+# Stop the container
+def stop_container(short_name):
+  name = get_container_full_name(short_name)
+
+  debug("Stopping lxc instance «" + name + "»")
+  os.system("lxc stop " + name)
+
+
+# Delete the container
+def delete_container(short_name):
+  name = get_container_full_name(short_name)
+
+  debug("Deleting lxc instance «" + name + "»")
+  os.system("lxc delete " + name)
+
+
+# Rename the container
+def rename_container(old_short_name, new_short_name):
+  old_name = get_container_full_name(old_short_name)
+  new_name = get_container_full_name(new_short_name)
+
+  debug("Renaming lxc instance «" + old_name + "» to «" + new_name + "»")
+  os.system("lxc rename " + old_name + " " + new_name)
+
+
+# Read the test definitions
+with open("tests.conf", "r") as f:
+  tests = eval(f.read())
+
+# Which tests to run
+if len(args.tests):
+  test_names_to_run = args.tests
+else:
+  test_names_to_run = tests.keys()
+
+
+# Run the test(s) one by one
+ret = 0
+for name in test_names_to_run:
+  timestamp = time.strftime("%Y%m%d-%H%M%S")
+  scriptfile = os.path.expanduser("~/firebuild-perftest-typescript-" + name + "-" + timestamp)
+  scriptfile_failed = os.path.expanduser("~/firebuild-perftest-typescript-" + name + "-FAILED-" + timestamp)
+
+  container_name = get_container_full_name(name)
+  params = tests[name]
+  build_deps = [name]
+  deps = []
+  if "deps" in params:
+   deps.append(params["deps"])
+
+  if not os.system("lxc info " + container_name + " >/dev/null 2>&1"):
+    stop_container(name)
+    delete_container(name)
+
+  create_and_start_container(name, deps, build_deps)
+
+  # Run the test
+  debug("Running test «" + name + "»")
+  status = os.system("script -e -c 'lxc exec --user 1000 --group 1000 --cwd /home/ubuntu/fb-infra/perftest " +
+                     container_name + " -- ./inner " + ("--debugging " if args.debugging else "") + name + "' " + scriptfile)
+  status = shell_exit_status(status)
+  if status:
+    # Will report a nonzero status (one of them), but keep going with other tests
+    ret = status
+
+  if not args.debugging:
+    # Get the timing results
+    debug("Fetching the results")
+    results = get_results(name)
+    if results:
+      with open(os.path.expanduser("~/buildtimes.csv"), "a") as f:
+        f.write(results)
+
+  stop_container(name)
+  if status:
+    os.rename(scriptfile, scriptfile_failed)
+    rename_container(name, name + "-FAILED-" + timestamp)
+  else:
+    os.remove(scriptfile)
+    delete_container(name)
+
+sys.exit(ret)
