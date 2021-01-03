@@ -1,5 +1,6 @@
-For initial setup, follow the steps from README_SETUP.txt.
+For initial setup run:
 
+./setup.sh
 
 For running tests locally (without bringing up a VM), use ./inner.
 Normally you shouldn't do this, except for debugging.
