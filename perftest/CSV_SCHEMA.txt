@@ -1,0 +1,21 @@
+The perftest suite adds rows to the ~/buildtimes.csv file. The columns of this CSV file are:
+
+ - build start time [Unix timestamp, s]
+ - build end time
+ - git commit hash being tested
+ - "commit(ter) date" (not "author date") of the latest git commit [Unix timestamp, s]
+ - number of total commits in the branch
+ - name of the project
+ - build command
+ - exit status of the last command [shell-like, e.g. 128+signum]
+ - real time, without using firebuild [s as float]
+ - user time, without using firebuild
+ - sys  time, without using firebuild
+ - real time, when using firebuild for the first time
+ - user time, when using firebuild for the first time
+ - sys  time, when using firebuild for the first time
+ - real time, when using firebuild for the second time
+ - user time, when using firebuild for the second time
+ - sys  time, when using firebuild for the second time
+ - cache size after first firebuild compilation [MB]
+ - cache size after second firebuild compilation

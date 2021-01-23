@@ -1,0 +1,75 @@
+#!/usr/bin/python3
+
+# Copyright (c) 2020 Interri Kft.
+# This file is an unpublished work. All rights reserved.
+
+# Uploads the contents of some CSV files to MySQL.
+# Drops the tables, destroying any previous contents, and re-creates them.
+#
+# See ../CSV_SCHEMA.txt for the explanation of the fields.
+
+import csv
+import mysql.connector  # apt-get install python3-mysql.connector
+
+mysql_host = 'localhost'
+mysql_user = 'fb'
+mysql_pass = 'fb'
+mysql_db   = 'fb'
+
+conn = mysql.connector.connect(host=mysql_host, user=mysql_user, password=mysql_pass, database=mysql_db)
+cursor = conn.cursor()
+
+cursor.execute('DROP TABLE IF EXISTS buildtimes')
+cursor.execute('CREATE TABLE buildtimes ('
+                   'build_start_timestamp INT,'
+                   'build_end_timestamp INT,'
+                   'commit_hash VARCHAR(40),'
+                   'commit_timestamp INT,'
+                   'commit_age INT,'
+                   'project VARCHAR(50),'
+                   'build_command VARCHAR(200),'
+                   'exit_status SMALLINT,'
+                   'real0 FLOAT,'
+                   'user0 FLOAT,'
+                   'sys0 FLOAT,'
+                   'real1 FLOAT,'
+                   'user1 FLOAT,'
+                   'sys1 FLOAT,'
+                   'real2 FLOAT,'
+                   'user2 FLOAT,'
+                   'sys2 FLOAT,'
+                   'cachesize1 INT,'
+                   'cachesize2 INT )')
+
+with open("buildtimes.csv") as csvfile:
+  reader = csv.reader(csvfile)
+  for (build_start_timestamp, build_end_timestamp,
+       commit_hash, commit_timestamp, commit_age,
+       project, build_command, exit_status,
+       real0, user0, sys0,
+       real1, user1, sys1,
+       real2, user2, sys2,
+       cachesize1, cachesize2) in reader:
+    cursor.execute('INSERT INTO buildtimes VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)',
+                   [int(build_start_timestamp), int(build_end_timestamp),
+                    commit_hash, int(commit_timestamp), int(commit_age),
+                    project, build_command, int(exit_status),
+                    float(real0), float(user0), float(sys0),
+                    float(real1), float(user1), float(sys1),
+                    float(real2), float(user2), float(sys2),
+                    int(cachesize1), int(cachesize2)])
+
+cursor.execute('DROP TABLE IF EXISTS commits')
+cursor.execute('CREATE TABLE commits ('
+                   'commit_hash VARCHAR(40),'
+                   'timestamp INT,'
+                   'subject VARCHAR(200) )')
+
+with open("commits.csv") as csvfile:
+  reader = csv.reader(csvfile)
+  for commit_hash, timestamp, subject in reader:
+    cursor.execute('INSERT INTO commits VALUES(%s, %s, %s)',
+                   [commit_hash, int(timestamp), subject])
+
+conn.commit()
+cursor.close()
