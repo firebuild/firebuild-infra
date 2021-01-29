@@ -7,7 +7,7 @@ Set up MySQL server
 
 Install:
 
-    sudo apt install mysql-server
+    sudo apt install mysql-server python3-mysql.connector
 
 Server configuration:
 
@@ -23,7 +23,7 @@ Server configuration:
 Configure a user `fb` with password `fb`, then create a database called
 `fb`:
 
-    mysql -u root -p
+    sudo mysql -u root -p
 
     create user 'fb' identified by 'fb';
     create database fb;
@@ -68,6 +68,10 @@ Continue with the "Update Grafana config" section.
 
 Update Grafana config
 ---------------------
+
+Install:
+
+    sudo apt install python3-jinja2
 
 Run `./generate_grafana_dashboard_config`, this creates the config file
 `grafana_dashboard.json` from a simple jinja template.
