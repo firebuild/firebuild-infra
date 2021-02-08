@@ -48,6 +48,9 @@ parser.add_argument("-f", "--firebuilddir",
                     default="~/firebuild",
                     help="root of the firebuild git tree, default is ~/firebuild",
                     metavar="DIR")
+parser.add_argument("--keep-log",
+                    action="store_true",
+                    help="keep the log file even after successful run")
 parser.add_argument("tests",
                     nargs="*",
                     help="name of the test to run, if none specified then run all the tests",
@@ -194,7 +197,8 @@ for name in test_names_to_run:
     os.rename(scriptfile, scriptfile_failed)
     rename_container(name, name + "-FAILED-" + timestamp)
   else:
-    os.remove(scriptfile)
+    if not args.keep_log:
+      os.remove(scriptfile)
     delete_container(name)
 
 sys.exit(ret)
