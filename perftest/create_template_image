@@ -28,10 +28,6 @@ echo " · Disabling unattended upgrades"
 lxc exec firebuild-perftest-image-template -- sed -i s/1/0/ /etc/apt/apt.conf.d/10periodic /etc/apt/apt.conf.d/20auto-upgrades
 lxc exec firebuild-perftest-image-template -- eatmydata apt-get -y remove unattended-upgrades
 
-echo " · Installing essential packages"
-lxc exec firebuild-perftest-image-template -- eatmydata apt-get update
-lxc exec firebuild-perftest-image-template -- eatmydata apt-get -y install git build-essential cmake libconfig++-dev libevent-dev libflatbuffers-dev flatbuffers-compiler libxxhash-dev libjemalloc-dev python3-jinja2
-
 echo " · Purging unneeded packages"
 lxc exec firebuild-perftest-image-template -- eatmydata apt-get -y autoremove
 
