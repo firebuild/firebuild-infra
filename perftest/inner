@@ -47,12 +47,6 @@ parser.add_argument("test",
                     metavar="TEST")
 args = parser.parse_args()
 
-fbdir = os.path.expanduser(args.firebuilddir)
-fbexe = fbdir + "/build/src/firebuild/firebuild"
-if not os.path.isfile(fbexe):
-  print('"' + fbexe + '" does not exist. Specify "-f DIR", and make sure firebuild is built under its "build" subdirectory', file=sys.stderr)
-  sys.exit(1)
-
 
 def debug(str):
   print(" 🔸 " + str, file=sys.stderr, flush=True)
@@ -211,7 +205,7 @@ def build_project(fbdir, name, params):
 
       restore_saved_tree(name, srcdir)
       debug("Building «" + name + "» with firebuild, empty cache")
-      (status, times1) = run_build_cmd("./run-firebuild " + fbdir + " -C " + srcdir + " " + cmd, timeout_minutes)
+      (status, times1) = run_build_cmd("env -C " + srcdir + " firebuild " + cmd, timeout_minutes)
 
     # Record cache size
     cachesize1 = get_du(fbcachedir)
@@ -220,7 +214,7 @@ def build_project(fbdir, name, params):
     if status == 0:
       restore_saved_tree(name, srcdir)
       debug("Building «" + name + "» with firebuild, from cache")
-      (status, times2) = run_build_cmd("./run-firebuild " + fbdir + " -C " + srcdir + " " + cmd, timeout_minutes)
+      (status, times2) = run_build_cmd("env -C " + srcdir + " firebuild " + cmd, timeout_minutes)
 
     # Record cache size
     cachesize2 = get_du(fbcachedir)
@@ -257,5 +251,5 @@ with open("tests.conf", "r") as f:
   tests = eval(f.read())
 
 # Run the test
-ret = build_project(fbdir, args.test, tests[args.test])
+ret = build_project(os.path.expanduser(args.firebuilddir), args.test, tests[args.test])
 sys.exit(ret)
