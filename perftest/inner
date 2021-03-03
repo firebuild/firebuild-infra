@@ -90,8 +90,15 @@ def run_build_cmd(cmd, timeout_minutes=0):
   user = end_res.ru_utime - start_res.ru_utime
   sys = end_res.ru_stime - start_res.ru_stime
 
-  debug("Command completed, status={}, real={:.3f}, user={:.3f}, sys={:.3f}"
-        .format(status, real, user, sys))
+  maybe_load = ""
+  if status == 124:
+    # The "timeout" command reported a timeout. Log the load average of the last 1 minute,
+    # to give a hint whether it was more likely an actual timeout (while the build command
+    # was still running, i.e. high load), or more likely an earlier deadlock (low load).
+    maybe_load = ", load_avg_1m=" + str(os.getloadavg()[0])
+
+  debug("Command completed, status={}, real={:.3f}, user={:.3f}, sys={:.3f}{}"
+        .format(status, real, user, sys, maybe_load))
 
   return (status, {
     "real": real,
