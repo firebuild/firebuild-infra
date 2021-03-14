@@ -36,7 +36,9 @@
 
 import argparse
 import os
+import shutil
 import sys
+import tempfile
 import time
 
 
@@ -100,8 +102,12 @@ def get_commit_age(fbdir):
 # "short_name" is the name without the "firebuild-perftest-" prefix. Mustn't contain shell meta-characters.
 # "pkgs" are additional packages to install.
 # "build_deps" are source packages whose build dependencies are to be installed.
-def create_and_start_container(short_name, pkgs, build_deps):
+def create_and_start_container(short_name, pkgs, build_deps, firebuild_debs_dir=None):
   name = get_container_full_name(short_name)
+
+  if os.system("lxc info " + name + " >/dev/null 2>&1") == 0:
+    stop_container(short_name)
+    delete_container(short_name)
 
   debug("Launching lxc instance «" + name + "»")
   os.system("lxc launch -p firebuild-perftest firebuild-perftest-image-template " + name)
@@ -111,22 +117,39 @@ def create_and_start_container(short_name, pkgs, build_deps):
 
   debug("Installing required packages")
   os.system("lxc exec " + name + " -- eatmydata apt-get update")
+  if firebuild_debs_dir:
+    os.system("lxc file push -r " + firebuild_debs_dir + " " + name + "/root/")
+    os.system("lxc exec " + name + " -- sh -c 'eatmydata apt-get install /root/*/*.*deb'")
   if build_deps:
     os.system("lxc exec --env DEBIAN_FRONTEND=noninteractive " + name + " -- eatmydata apt-get -y build-dep " + " ".join(build_deps))
   if pkgs:
     os.system("lxc exec --env DEBIAN_FRONTEND=noninteractive " + name + " -- eatmydata apt-get -y install " + " ".join(pkgs))
 
-  debug("Copying up the firebuild and fb-infra repos")
+  debug("Copying up the fb-infra repo")
+  # "lxc file push --recursive" is too slow, cannot set the uid/gid, and cannot strip a directory component
+  os.system("tar c -C .. --transform=s@^[.]/@fb-infra/@ . 2>/dev/null | lxc exec --user 1000 --group 1000 --cwd /home/ubuntu " + name + " -- tar x")
+
+def build_firebuild():
+  create_and_start_container("firebuild", [], [])
+  name = get_container_full_name("firebuild")
+
+  debug("Copying up the firebuild repo")
   # "lxc file push --recursive" is too slow, cannot set the uid/gid, and cannot strip a directory component
   os.system("tar c -C " + fbdir + " --transform=s@^[.]/@firebuild/@ . 2>/dev/null | lxc exec --user 1000 --group 1000 --cwd /home/ubuntu " + name + " -- tar x")
-  os.system("tar c -C .. --transform=s@^[.]/@fb-infra/@ . 2>/dev/null | lxc exec --user 1000 --group 1000 --cwd /home/ubuntu " + name + " -- tar x")
 
   debug("Building firebuild")
   os.system("lxc exec --env DEBIAN_FRONTEND=noninteractive " + name + " -- eatmydata apt-get -y build-dep /home/ubuntu/firebuild")
-  os.system("lxc exec --user 1000 --group 1000 --cwd /home/ubuntu/firebuild " + name +
-            " -- sh -c 'git clean -dfx && env " + deb_build_env(args.debugging) + " dpkg-buildpackage'")
-  os.system("lxc exec " + name + " -- sh -c 'eatmydata apt-get install /home/ubuntu/*.deb /home/ubuntu/*.ddeb'")
-
+  if os.system("lxc exec --user 1000 --group 1000 --cwd /home/ubuntu/firebuild " + name +
+            " -- sh -c 'git clean -dfx && env " + deb_build_env(args.debugging) + " dpkg-buildpackage'") != 0:
+    return None
+  os.system("lxc exec " + name + " -- sh -c 'mkdir /home/ubuntu/firebuild-debs && mv /home/ubuntu/*.deb /home/ubuntu/*.ddeb /home/ubuntu/firebuild-debs'")
+  firebuild_debs_dir = tempfile.mkdtemp()
+  os.system("lxc file pull -r " + name + "/home/ubuntu/firebuild-debs " + firebuild_debs_dir)
+  os.system("mv " + firebuild_debs_dir + "/firebuild-debs/*.*deb " + firebuild_debs_dir)
+  os.rmdir(os.path.join(firebuild_debs_dir, "firebuild-debs"))
+  stop_container("firebuild")
+  delete_container("firebuild")
+  return firebuild_debs_dir
 
 # Retrieve the timing results
 def get_results(short_name):
@@ -172,6 +195,13 @@ else:
 
 # Run the test(s) one by one
 ret = 0
+
+# build firebuild
+firebuild_debs_dir = build_firebuild()
+
+if not firebuild_debs_dir:
+  sys.exit(1)
+
 for name in test_names_to_run:
   timestamp = time.strftime("%Y%m%d-%H%M%S")
   scriptfile = os.path.expanduser("~/firebuild-perftest-typescript-" + name + "-" + timestamp)
@@ -184,11 +214,7 @@ for name in test_names_to_run:
   if "deps" in params:
    deps.append(params["deps"])
 
-  if not os.system("lxc info " + container_name + " >/dev/null 2>&1"):
-    stop_container(name)
-    delete_container(name)
-
-  create_and_start_container(name, deps, build_deps)
+  create_and_start_container(name, deps, build_deps, firebuild_debs_dir)
 
   # Run the test
   debug("Running test «" + name + "»")
@@ -220,4 +246,5 @@ for name in test_names_to_run:
       os.remove(scriptfile)
     delete_container(name)
 
+shutil.rmtree(firebuild_debs_dir)
 sys.exit(ret)
