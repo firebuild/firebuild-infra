@@ -38,10 +38,15 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-d", "--debugging",
                     action="store_true",
                     help="debugging firebuild (skip non-firebuild build, don't record performance)")
-parser.add_argument("-f", "--firebuilddir",
-                    default="~/firebuild",
-                    help="root of the firebuild git tree, default is ~/firebuild",
-                    metavar="DIR")
+parser.add_argument("--commit-id",
+                    default="unknown",
+                    help="commit id of firebuild")
+parser.add_argument("--commit-timestamp",
+                    default="-1",
+                    help="commit timestamp of firebuild as seconds since epoch (1970-01-01 00:00:00 UTC)")
+parser.add_argument("--commit-age",
+                    default="-1",
+                    help="number of commits since the initial one")
 parser.add_argument("test",
                     help="name of the test to run",
                     metavar="TEST")
@@ -101,18 +106,6 @@ def run_build_cmd(cmd, timeout_minutes=0):
   })
 
 
-def get_commit_id(fbdir):
-  return os.popen("git -C " + fbdir + " rev-parse --short=12 HEAD").read().strip()
-
-
-def get_commit_timestamp(fbdir):
-  return os.popen("git -C " + fbdir + " log --format='format:%ct' -n 1 HEAD").read().strip()
-
-
-def get_commit_age(fbdir):
-  return os.popen("git -C " + fbdir + " rev-list --count HEAD").read().strip()
-
-
 def restore_saved_tree(name, dir):
   debug("Restoring the source tree of «" + name + "»")
   if os.access(dir, os.F_OK):
@@ -127,7 +120,7 @@ def get_du(dir):
   return int(ret or "0")
 
 
-def build_project(fbdir, name, params):
+def build_project(name, params):
   # Automatically generate "dl", "dir" and "cmd" if "type" is "deb"
   if params.get("type") == "deb":
     dl = "apt-get source " + name
@@ -152,9 +145,6 @@ def build_project(fbdir, name, params):
   if params.get("repeat"):
     cmds *= params["repeat"]
 
-  commit_id = get_commit_id(fbdir)
-  commit_timestamp = get_commit_timestamp(fbdir)
-  commit_age = get_commit_age(fbdir)
   dldir = builddir + "/" + name  # e.g. /home/ubuntu/perftest-build/mc
   srcdir = dldir + "/" + dir     # e.g. /home/ubuntu/perftest-build/mc/mc-4.8.24
   fbcachedir = dldir + "/" + ".fbcache"
@@ -226,7 +216,7 @@ def build_project(fbdir, name, params):
       with open(os.path.expanduser("~/buildtimes.csv"), "a") as csvfile:
         writer = csv.writer(csvfile, lineterminator='\n')
         writer.writerow([start_timestamp, end_timestamp,
-                         commit_id, commit_timestamp, commit_age,
+                         args.commit_id, args.commit_timestamp, args.commit_age,
                          name, cmd, status,
                          "{:.3f}".format(times0["real"]), "{:.3f}".format(times0["user"]), "{:.3f}".format(times0["sys"]),
                          "{:.3f}".format(times1["real"]), "{:.3f}".format(times1["user"]), "{:.3f}".format(times1["sys"]),
@@ -251,5 +241,5 @@ with open("tests.conf", "r") as f:
   tests = eval(f.read())
 
 # Run the test
-ret = build_project(os.path.expanduser(args.firebuilddir), args.test, tests[args.test])
+ret = build_project(args.test, tests[args.test])
 sys.exit(ret)
