@@ -25,7 +25,6 @@ cursor.execute('CREATE TABLE buildtimes ('
                    'build_end_timestamp INT,'
                    'firebuild_version VARCHAR(40),'
                    'commit_timestamp INT,'
-                   'commit_age INT,'
                    'project VARCHAR(50),'
                    'build_command VARCHAR(200),'
                    'exit_status SMALLINT,'
@@ -44,15 +43,15 @@ cursor.execute('CREATE TABLE buildtimes ('
 with open("buildtimes.csv") as csvfile:
   reader = csv.reader(csvfile)
   for (build_start_timestamp, build_end_timestamp,
-       firebuild_version, commit_timestamp, commit_age,
+       firebuild_version, commit_timestamp,
        project, build_command, exit_status,
        real0, user0, sys0,
        real1, user1, sys1,
        real2, user2, sys2,
        cachesize1, cachesize2) in reader:
-    cursor.execute('INSERT INTO buildtimes VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)',
+    cursor.execute('INSERT INTO buildtimes VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)',
                    [int(build_start_timestamp), int(build_end_timestamp),
-                    firebuild_version, int(commit_timestamp), int(commit_age),
+                    firebuild_version, int(commit_timestamp),
                     project, build_command, int(exit_status),
                     float(real0), float(user0), float(sys0),
                     float(real1), float(user1), float(sys1),

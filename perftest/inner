@@ -41,9 +41,6 @@ parser.add_argument("-d", "--debugging",
 parser.add_argument("--commit-timestamp",
                     default="-1",
                     help="commit timestamp of firebuild as seconds since epoch (1970-01-01 00:00:00 UTC)")
-parser.add_argument("--commit-age",
-                    default="-1",
-                    help="number of commits since the initial one")
 parser.add_argument("test",
                     help="name of the test to run",
                     metavar="TEST")
@@ -214,7 +211,7 @@ def build_project(name, params):
       with open(os.path.expanduser("~/buildtimes.csv"), "a") as csvfile:
         writer = csv.writer(csvfile, lineterminator='\n')
         writer.writerow([start_timestamp, end_timestamp,
-                         firebuild_version, args.commit_timestamp, args.commit_age,
+                         firebuild_version, args.commit_timestamp,
                          name, cmd, status,
                          "{:.3f}".format(times0["real"]), "{:.3f}".format(times0["user"]), "{:.3f}".format(times0["sys"]),
                          "{:.3f}".format(times1["real"]), "{:.3f}".format(times1["user"]), "{:.3f}".format(times1["sys"]),
