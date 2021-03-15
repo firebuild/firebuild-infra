@@ -38,9 +38,6 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-d", "--debugging",
                     action="store_true",
                     help="debugging firebuild (skip non-firebuild build, don't record performance)")
-parser.add_argument("--commit-id",
-                    default="unknown",
-                    help="commit id of firebuild")
 parser.add_argument("--commit-timestamp",
                     default="-1",
                     help="commit timestamp of firebuild as seconds since epoch (1970-01-01 00:00:00 UTC)")
@@ -213,10 +210,11 @@ def build_project(name, params):
 
     # Write a CSV row
     if not args.debugging:
+      firebuild_version = os.popen("firebuild --version | awk '/FireBuild Git / {print $3}'").read().strip()
       with open(os.path.expanduser("~/buildtimes.csv"), "a") as csvfile:
         writer = csv.writer(csvfile, lineterminator='\n')
         writer.writerow([start_timestamp, end_timestamp,
-                         args.commit_id, args.commit_timestamp, args.commit_age,
+                         firebuild_version, args.commit_timestamp, args.commit_age,
                          name, cmd, status,
                          "{:.3f}".format(times0["real"]), "{:.3f}".format(times0["user"]), "{:.3f}".format(times0["sys"]),
                          "{:.3f}".format(times1["real"]), "{:.3f}".format(times1["user"]), "{:.3f}".format(times1["sys"]),

@@ -8,7 +8,7 @@
         "iconColor": "#AAAAAA",
         "limit": 100,
         "name": "commit_details_not_tested",
-        "rawQuery": "SELECT\n  timestamp AS time,\n  GROUP_CONCAT(CONCAT(commit_hash, \"\\n\", subject) SEPARATOR '\\n') AS text\nFROM commits\nWHERE NOT EXISTS (SELECT 1 FROM buildtimes WHERE buildtimes.commit_timestamp = commits.timestamp)\nAND $__unixEpochFilter(timestamp)\nGROUP BY timestamp\n",
+        "rawQuery": "SELECT\n  timestamp AS time,\n  GROUP_CONCAT(CONCAT(firebuild_version, \"\\n\", subject) SEPARATOR '\\n') AS text\nFROM commits\nWHERE NOT EXISTS (SELECT 1 FROM buildtimes WHERE buildtimes.commit_timestamp = commits.timestamp)\nAND $__unixEpochFilter(timestamp)\nGROUP BY timestamp\n",
         "showIn": 0,
         "tags": [],
         "type": "tags"
@@ -20,7 +20,7 @@
         "iconColor": "#8F3BB8",
         "limit": 100,
         "name": "commit_details_tested",
-        "rawQuery": "SELECT\n  timestamp AS time,\n  GROUP_CONCAT(CONCAT(commit_hash, \"\\n\", subject) SEPARATOR '\\n') AS text\nFROM commits\nWHERE EXISTS (SELECT 1 FROM buildtimes WHERE buildtimes.commit_timestamp = commits.timestamp)\nAND $__unixEpochFilter(timestamp)\nGROUP BY timestamp\n",
+        "rawQuery": "SELECT\n  timestamp AS time,\n  GROUP_CONCAT(CONCAT(firebuild_version, \"\\n\", subject) SEPARATOR '\\n') AS text\nFROM commits\nWHERE EXISTS (SELECT 1 FROM buildtimes WHERE buildtimes.commit_timestamp = commits.timestamp)\nAND $__unixEpochFilter(timestamp)\nGROUP BY timestamp\n",
         "showIn": 0,
         "tags": [],
         "type": "tags"
