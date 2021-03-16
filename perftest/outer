@@ -89,7 +89,7 @@ def get_container_full_name(short_name):
 
 
 def get_commit_timestamp(fbdir):
-  return os.popen("git -C " + fbdir + " log --format='format:%ct' -n 1 HEAD").read().strip()
+  return os.popen("git -C " + fbdir + " log --format='format:%cD' -n 1 HEAD").read().strip()
 
 
 # Creates the container if necessary, starts it up, makes sure it's set up properly.
@@ -124,7 +124,7 @@ def create_and_start_container(short_name, pkgs, build_deps, firebuild_debs_dir=
   os.system("tar c -C .. --transform=s@^[.]/@fb-infra/@ . 2>/dev/null | lxc exec --user 1000 --group 1000 --cwd /home/ubuntu " + name + " -- tar x")
 
 def build_firebuild():
-  create_and_start_container("firebuild", ["devscripts"], [])
+  create_and_start_container("firebuild", ["devscripts", "faketime"], [])
   name = get_container_full_name("firebuild")
 
   debug("Copying up the firebuild repo")
@@ -135,7 +135,7 @@ def build_firebuild():
   git_version = os.popen("git -C " + fbdir + " describe HEAD").read().strip().lstrip("v")
   os.system("lxc exec --env DEBIAN_FRONTEND=noninteractive " + name + " -- eatmydata apt-get -y build-dep /home/ubuntu/firebuild")
   if os.system("lxc exec --user 1000 --group 1000 --cwd /home/ubuntu/firebuild " + name +
-            " -- sh -c 'git clean -dfx && EDITOR=touch dch -b -v" + git_version + " && env " + deb_build_env(args.debugging) + " dpkg-buildpackage'") != 0:
+            " -- sh -c 'git clean -dfx && EDITOR=touch faketime \"" + get_commit_timestamp(fbdir) + "\" dch -b -v" + git_version + " && env " + deb_build_env(args.debugging) + " dpkg-buildpackage'") != 0:
     return None
   os.system("lxc exec " + name + " -- sh -c 'mkdir /home/ubuntu/firebuild-debs && mv /home/ubuntu/*.deb /home/ubuntu/*.ddeb /home/ubuntu/firebuild-debs'")
   firebuild_debs_dir = tempfile.mkdtemp()
@@ -215,7 +215,6 @@ for name in test_names_to_run:
   debug("Running test «" + name + "»")
   status = os.system("script -e -c 'lxc exec --user 1000 --group 1000 --cwd /home/ubuntu/fb-infra/perftest " +
                      container_name + " -- ./inner " + ("--debugging " if args.debugging else "") +
-                     "--commit-timestamp " + get_commit_timestamp(fbdir) + " " +
                      name + "' " + scriptfile)
   status = shell_exit_status(status)
   if status:
