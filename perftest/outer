@@ -113,7 +113,7 @@ def create_and_start_container(short_name, pkgs, build_deps, firebuild_debs_dir=
   os.system("lxc exec " + name + " -- eatmydata apt-get update")
   if firebuild_debs_dir:
     os.system("lxc file push -r " + firebuild_debs_dir + " " + name + "/root/")
-    os.system("lxc exec " + name + " -- sh -c 'eatmydata apt-get install /root/*/*.*deb'")
+    os.system("lxc exec " + name + " -- sh -c 'eatmydata apt-get -y install /root/*/*.*deb'")
   if build_deps:
     os.system("lxc exec --env DEBIAN_FRONTEND=noninteractive " + name + " -- eatmydata apt-get -y build-dep " + " ".join(build_deps))
   if pkgs:
