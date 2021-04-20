@@ -40,7 +40,7 @@ if lxc image list | grep -qw firebuild-perftest-image-template; then
 fi
 
 echo " · Creating lxc image"
-lxc publish firebuild-perftest-image-template --alias firebuild-perftest-image-template
+lxc publish --compression none firebuild-perftest-image-template --alias firebuild-perftest-image-template
 
 echo " · Deleting lxc instance"
 lxc delete firebuild-perftest-image-template
