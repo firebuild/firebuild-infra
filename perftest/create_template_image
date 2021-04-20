@@ -22,11 +22,14 @@ lxc exec firebuild-perftest-image-template -- sh -c 'sed "s/^deb /deb-src /" < /
 echo " · Disabling man-db creation"
 lxc exec firebuild-perftest-image-template -- sh -c 'echo man-db man-db/auto-update boolean false | debconf-set-selections'
 
-# Background jobs could easily mess up the timing measurements.
-# Double defense: disable in the config, and then remove the package (leaving the config files behind, just in case something reinstalls it).
-echo " · Disabling unattended upgrades"
-lxc exec firebuild-perftest-image-template -- sed -i s/1/0/ /etc/apt/apt.conf.d/10periodic /etc/apt/apt.conf.d/20auto-upgrades
-lxc exec firebuild-perftest-image-template -- eatmydata apt-get -y remove unattended-upgrades
+echo " · Removing packages with background jobs likely interfering with tests"
+lxc exec firebuild-perftest-image-template -- eatmydata apt-get -y purge rsyslog unattended-upgrades
+
+# This fails LP: #1878674
+lxc exec firebuild-perftest-image-template -- eatmydata apt-get -y purge snapd || true
+
+echo " · Disabling APT updates"
+lxc exec firebuild-perftest-image-template -- sed -i s/1/0/ /etc/apt/apt.conf.d/10periodic
 
 echo " · Purging unneeded packages"
 lxc exec firebuild-perftest-image-template -- eatmydata apt-get -y autoremove
