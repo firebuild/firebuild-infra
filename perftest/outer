@@ -218,6 +218,9 @@ for name in test_names_to_run:
                      name + "' " + scriptfile)
   status = shell_exit_status(status)
   if status:
+    if os.system("lxc exec " + container_name + " -- sh -c 'test -f /var/tmp/core.firebuild*'") == 0:
+      os.system("lxc exec " + container_name + " -- apt-get install -qqy gdb")
+      os.system("lxc exec " + container_name + " -- sh -c 'gdb -batch -ex \"bt full\" /usr/bin/firebuild /var/tmp/core.firebuild*'")
     # Will report a nonzero status (one of them), but keep going with other tests
     ret = status
 
