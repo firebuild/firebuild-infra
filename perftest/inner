@@ -206,6 +206,11 @@ def build_project(name, params):
 
     end_timestamp = int(time.time())
 
+    if status:
+      if os.system("test -f /var/tmp/core.firebuild*") == 0:
+        os.system("sudo apt-get install -qqy gdb")
+        os.system("gdb -batch -ex \"bt full\" /usr/bin/firebuild /var/tmp/core.firebuild*")
+
     # Write a CSV row
     if not args.debugging:
       firebuild_version = os.popen("firebuild --version | awk '/FireBuild Git / {print $3}'").read().strip()
