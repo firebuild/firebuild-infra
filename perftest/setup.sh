@@ -39,7 +39,7 @@ groups $USER | grep -q lxd || sudo adduser $USER lxd && LXD_GROUP_FIXUP_PREFIX="
 
 $LXD_GROUP_FIXUP_PREFIX lxc profile copy default firebuild-perftest
 
-echo -e "#cloud-config\napt:\n  proxy: http://$LXD_ADDRESS:8000" | $LXD_GROUP_FIXUP_PREFIX lxc profile set firebuild-perftest user.user-data -
+printf "#cloud-config\napt:\n  proxy: http://$LXD_ADDRESS:8000\n" | $LXD_GROUP_FIXUP_PREFIX lxc profile set firebuild-perftest user.user-data -
 echo "New LXC profile:"
 $LXD_GROUP_FIXUP_PREFIX lxc profile show firebuild-perftest
 
