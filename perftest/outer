@@ -43,6 +43,9 @@ import time
 
 
 parser = argparse.ArgumentParser()
+parser.add_argument("-a", "--auto-shim",
+                    action="store_true",
+                    help="run an intercepted build with setting up shim symlinks, wipe the cache, then use shims to populate cache, then use shims for shortcutting")
 parser.add_argument("-d", "--debugging",
                     action="store_true",
                     help="debugging firebuild (build it in Debug mode, skip non-firebuild build, don't record performance)")
@@ -232,6 +235,7 @@ for test in tests_to_run:
   status = os.system("script -e -c 'lxc exec --user 1000 --group 1000 --cwd /home/ubuntu/fb-infra/perftest " +
                      container_name + " -- ./inner " + ("--debugging " if args.debugging else "") +
                      "-j " + args.jobs + " " +
+                     ("--auto-shim " if args.auto_shim else "") +
                      name + ((":" + test_type + ":" + timeout) if test_type is not None else "") +"' " + scriptfile)
   status = shell_exit_status(status)
   if status:

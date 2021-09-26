@@ -38,6 +38,9 @@ import time
 
 
 parser = argparse.ArgumentParser()
+parser.add_argument("-a", "--auto-shim",
+                    action="store_true",
+                    help="run an intercepted build with setting up shim symlinks, wipe the cache, then use shims to populate cache, then use shims for shortcutting")
 parser.add_argument("-d", "--debugging",
                     action="store_true",
                     help="debugging firebuild (skip non-firebuild build, don't record performance)")
@@ -66,7 +69,9 @@ def shell_exit_status(status):
 
 
 builddir = os.path.expanduser("~/perftest-build")
-
+shim_dir = os.path.expanduser("~/.firebuild/bin")
+shim_create_options = os.path.expanduser("-u -o 'intercepted_commands_dir = \"" + shim_dir + "\"' ")
+use_shim_options = os.path.expanduser("-o 'use_shim = true' -o 'intercepted_commands_dir = \"" + shim_dir + "\"' ")
 
 def run_build_cmd(cmd, timeout_minutes=0):
   start_monotonic = time.monotonic()
@@ -196,7 +201,18 @@ def build_project(name, params):
       debug("Building «" + name + "» with firebuild, empty cache")
       os.system("touch /tmp/firebuild_started")
       os.system("firebuild --version")
-      (status, times1) = run_build_cmd("env -C " + srcdir + " firebuild " + cmd, timeout_minutes)
+      os.makedirs(shim_dir, exist_ok=True)
+      (status, times1) = run_build_cmd("env -C " + srcdir + " firebuild " + (shim_create_options if args.auto_shim else " ") + cmd, timeout_minutes)
+
+      if (args.auto_shim):
+        debug("Generated shim links:")
+        os.system("ls " + shim_dir)
+        debug("Removing «" + fbcachedir + "»")
+        shutil.rmtree(fbcachedir, ignore_errors=True)
+        restore_saved_tree(name, srcdir)
+        debug("Building «" + name + "» with firebuild shims set up")
+        (status, times1) = run_build_cmd("env -C " + srcdir + " firebuild " + use_shim_options + cmd, timeout_minutes)
+
 
     # Record cache size
     cachesize1 = get_du(fbcachedir)
@@ -205,7 +221,7 @@ def build_project(name, params):
     if status == 0:
       restore_saved_tree(name, srcdir)
       debug("Building «" + name + "» with firebuild, from cache")
-      (status, times2) = run_build_cmd("env -C " + srcdir + " firebuild " + cmd, timeout_minutes)
+      (status, times2) = run_build_cmd("env -C " + srcdir + " firebuild " + (use_shim_options if args.auto_shim else " ") + cmd, timeout_minutes)
 
     # Record cache size
     cachesize2 = get_du(fbcachedir)
