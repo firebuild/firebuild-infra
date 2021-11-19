@@ -9,6 +9,8 @@ if (length(args) != 3) {
 
 buildtimes <- read.csv(args[1], header=FALSE, col.names=c("start", "end", "version", "ts", "name", "cmd", "status", "real1", "user1", "sys1", "real2", "user2", "sys2", "real3", "user3", "sys3", "cache.size.1", "cache.size.2"))
 
+buildtimes[buildtimes$status != 0, 8:18]  <- NA
+
 bt1 <- buildtimes[buildtimes$version == args[2], 8:18]
 bt2 <- buildtimes[buildtimes$version == args[3], 8:18]
 
