@@ -12,7 +12,9 @@ buildtimes <- read.csv(args[1], header=FALSE, col.names=c("start", "end", "versi
 buildtimes[buildtimes$status != 0, 8:18]  <- NA
 
 bt1 <- buildtimes[buildtimes$version == args[2], 8:18]
+names1 <- buildtimes[buildtimes$version == args[2], 5]
 bt2 <- buildtimes[buildtimes$version == args[3], 8:18]
+names2 <- buildtimes[buildtimes$version == args[3], 5]
 
 if (!all(dim(bt1) == dim(bt2))) {
     if (dim(bt1)[1] < dim(bt2)[1]) {
@@ -24,6 +26,10 @@ if (!all(dim(bt1) == dim(bt2))) {
     }
     print(paste("Versions have different run counts, cutting last runs from the shorter set:",
                 shorter, "using only the first", dim(bt1)[1], "runs"))
+}
+
+if (!all(names1[1:dim(bt1)[1]] == names2[1:dim(bt2)[1]])) {
+    stop("ERROR: Mismatched tests are compared", call.=FALSE)
 }
 
 print(paste("Time % increase in", args[3], "vs.", args[2]))
