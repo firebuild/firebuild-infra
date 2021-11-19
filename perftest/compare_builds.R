@@ -13,7 +13,15 @@ bt1 <- buildtimes[buildtimes$version == args[2], 8:18]
 bt2 <- buildtimes[buildtimes$version == args[3], 8:18]
 
 if (!all(dim(bt1) == dim(bt2))) {
-  stop("ERROR: Versions have different run counts", call.=FALSE)
+    if (dim(bt1)[1] < dim(bt2)[1]) {
+        shorter = args[2]
+        bt2 <- bt2[1:dim(bt1)[1],]
+    } else {
+        shorter = args[3]
+        bt1 <- bt1[1:dim(bt2)[1],]
+    }
+    print(paste("Versions have different run counts, cutting last runs from the shorter set:",
+                shorter, "using only the first", dim(bt1)[1], "runs"))
 }
 
 print(paste("Time % increase in", args[3], "vs.", args[2]))
