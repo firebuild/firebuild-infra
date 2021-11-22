@@ -32,14 +32,24 @@ if (!all(names1[1:dim(bt1)[1]] == names2[1:dim(bt2)[1]])) {
     stop("ERROR: Mismatched tests are compared", call.=FALSE)
 }
 
-print(paste("Time % increase in", args[3], "vs.", args[2]))
+message(paste("Time % increase in", args[3], "vs.", args[2]))
 for(i in c(0, 1, 2)) {
     start_col <- 1 + i * 3
     end_col <- start_col + 2
+    message("")
     print(summary(100 * (bt2[, start_col:end_col] - bt1[, start_col:end_col]) / bt1[, start_col:end_col]))
+    totals <- data.frame(t(100 * (colSums(bt2[, start_col:end_col], na.rm = TRUE) - colSums(bt1[, start_col:end_col], na.rm = TRUE)) / colSums(bt1[, start_col:end_col], na.rm = TRUE)))
+    row.names(totals) <- c(" Sum. incr.:")
+    message("")
+    print(totals, justify="")
 }
 
-print(paste("Cache size % increase in", args[3], "vs.", args[2]))
+message("")
+message(paste("Cache size % increase in", args[3], "vs.", args[2]))
 start_col <- 10
 end_col <- 11
 print(summary(100 * (bt2[, start_col:end_col] - bt1[, start_col:end_col]) / bt1[, start_col:end_col]))
+totals <- data.frame(t((100 * (colSums(bt2[, start_col:end_col], na.rm = TRUE) - colSums(bt1[, start_col:end_col], na.rm = TRUE)) / colSums(bt1[, start_col:end_col], na.rm = TRUE))))
+row.names(totals) <- c(" Sum. incr.:")
+message("")
+print(totals)
