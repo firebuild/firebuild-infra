@@ -53,3 +53,11 @@ totals <- data.frame(t((100 * (colSums(bt2[, start_col:end_col], na.rm = TRUE) -
 row.names(totals) <- c(" Sum. incr.:")
 message("")
 print(totals)
+
+print(paste("Total real time with firebuild (%) in", args[2], ":"))
+vanilla <- sum(bt1[, 1], na.rm = TRUE)
+first <- sum(bt1[, 4], na.rm = TRUE)
+second <- sum(bt1[, 7], na.rm = TRUE)
+overheads <- c(first, second) / vanilla * 100
+names(overheads) <- c("first run", "second run")
+print(overheads)
