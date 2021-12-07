@@ -54,10 +54,16 @@ row.names(totals) <- c(" Sum. incr.:")
 message("")
 print(totals)
 
-print(paste("Total real time with firebuild (%) in", args[2], ":"))
-vanilla <- sum(bt1[, 1], na.rm = TRUE)
-first <- sum(bt1[, 4], na.rm = TRUE)
-second <- sum(bt1[, 7], na.rm = TRUE)
-overheads <- c(first, second) / vanilla * 100
-names(overheads) <- c("first run", "second run")
+message("")
+message(paste("Total time with firebuild (%) in", args[3], ":"))
+sys <- colSums(bt2[, 4:6], na.rm = TRUE)
+use <- colSums(bt2[, 7:9], na.rm = TRUE)
+sums <- c(colSums(bt2[, 1:3], na.rm = TRUE),
+          colSums(bt2[, 4:6], na.rm = TRUE),
+          colSums(bt2[, 7:9], na.rm = TRUE))
+dim(sums) <- c(3,3)
+sums  <- rbind(sums[,], sums[2,] + sums[3,])
+overheads <- (sums[,2:3]) / sums[,1] * 100
+colnames(overheads) <- c("first run", "second run")
+rownames(overheads) <- c("real", "user","sys", "user+sys")
 print(overheads)
