@@ -7,7 +7,7 @@ if (length(args) != 3) {
     stop("Usage: compare_builds.R <buildtimes.csv> <version 1> <version 2>", call.=FALSE)
 }
 
-buildtimes <- read.csv(args[1], header=FALSE, col.names=c("start", "end", "version", "ts", "name", "cmd", "status", "real1", "user1", "sys1", "real2", "user2", "sys2", "real3", "user3", "sys3", "cache.size.1", "cache.size.2"))
+buildtimes <- read.csv(args[1], header=FALSE, col.names=c("start", "end", "version", "ts", "name", "cmd", "status", "real1", "user1", "sys1", "real2", "user2", "sys2", "real3", "user3", "sys3", "cache.size.1", "cache.size.2", "jobs"))
 
 buildtimes[buildtimes$status != 0, 8:18]  <- NA
 
