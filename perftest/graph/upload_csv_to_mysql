@@ -38,7 +38,8 @@ cursor.execute('CREATE TABLE buildtimes ('
                    'user2 FLOAT,'
                    'sys2 FLOAT,'
                    'cachesize1 INT,'
-                   'cachesize2 INT )')
+                   'cachesize2 INT,'
+                   'jobs INT)')
 
 with open("buildtimes.csv") as csvfile:
   reader = csv.reader(csvfile)
@@ -48,15 +49,15 @@ with open("buildtimes.csv") as csvfile:
        real0, user0, sys0,
        real1, user1, sys1,
        real2, user2, sys2,
-       cachesize1, cachesize2) in reader:
-    cursor.execute('INSERT INTO buildtimes VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)',
+       cachesize1, cachesize2, jobs) in reader:
+    cursor.execute('INSERT INTO buildtimes VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)',
                    [int(build_start_timestamp), int(build_end_timestamp),
                     firebuild_version, int(commit_timestamp),
                     project, build_command, int(exit_status),
                     float(real0), float(user0), float(sys0),
                     float(real1), float(user1), float(sys1),
                     float(real2), float(user2), float(sys2),
-                    int(cachesize1), int(cachesize2)])
+                    int(cachesize1), int(cachesize2), int(jobs)])
 
 cursor.execute('DROP TABLE IF EXISTS commits')
 cursor.execute('CREATE TABLE commits ('
