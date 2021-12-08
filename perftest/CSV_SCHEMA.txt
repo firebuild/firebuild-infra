@@ -19,3 +19,4 @@ The perftest suite adds rows to the ~/buildtimes.csv file. The columns of this C
  - sys  time, when using firebuild for the second time
  - cache size after first firebuild compilation [MB]
  - cache size after second firebuild compilation
+ - number of parallel jobs (-jN)

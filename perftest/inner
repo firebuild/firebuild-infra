@@ -230,7 +230,7 @@ def build_project(name, params):
                          "{:.3f}".format(times0["real"]), "{:.3f}".format(times0["user"]), "{:.3f}".format(times0["sys"]),
                          "{:.3f}".format(times1["real"]), "{:.3f}".format(times1["user"]), "{:.3f}".format(times1["sys"]),
                          "{:.3f}".format(times2["real"]), "{:.3f}".format(times2["user"]), "{:.3f}".format(times2["sys"]),
-                         cachesize1, cachesize2])
+                         cachesize1, cachesize2, jobs])
 
     if status:
       return status
