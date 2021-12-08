@@ -24,15 +24,14 @@ if (!all(dim(bt1) == dim(bt2))) {
         shorter = args[3]
         bt1 <- bt1[1:dim(bt2)[1],]
     }
-    print(paste("Versions have different run counts, cutting last runs from the shorter set:",
-                shorter, "using only the first", dim(bt1)[1], "runs"))
+    message(paste("Versions have different run counts, omitting last runs from the longer set."))
 }
 
 if (!all(names1[1:dim(bt1)[1]] == names2[1:dim(bt2)[1]])) {
     stop("ERROR: Mismatched tests are compared", call.=FALSE)
 }
 
-message(paste("Time % increase in", args[3], "vs.", args[2]))
+message(paste("Time % increase from", args[2], "to", args[3], "\ncomparing", dim(bt1)[1], "run pairs."))
 for(i in c(0, 1, 2)) {
     start_col <- 1 + i * 3
     end_col <- start_col + 2
@@ -45,7 +44,7 @@ for(i in c(0, 1, 2)) {
 }
 
 message("")
-message(paste("Cache size % increase in", args[3], "vs.", args[2]))
+message(paste("Cache size % increase from", args[2], "to", args[3]))
 start_col <- 10
 end_col <- 11
 print(summary(100 * (bt2[, start_col:end_col] - bt1[, start_col:end_col]) / bt1[, start_col:end_col]))
