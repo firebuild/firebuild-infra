@@ -44,7 +44,7 @@ parser.add_argument("--commit-timestamp",
                     default="-1",
                     help="commit timestamp of firebuild as seconds since epoch (1970-01-01 00:00:00 UTC)")
 parser.add_argument("-j","--jobs",
-                    default="1,4",
+                    default=str(os.cpu_count()),
                     help="list of parallelism levels to use in builds, default is 1,4. Passing empty string will use \"-j\"")
 parser.add_argument("test",
                     help="name of the test to run",

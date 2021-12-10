@@ -51,7 +51,7 @@ parser.add_argument("-f", "--firebuilddir",
                     help="root of the firebuild git tree, default is ~/firebuild",
                     metavar="DIR")
 parser.add_argument("-j","--jobs",
-                    default="1,4",
+                    default=str(os.cpu_count()),
                     help="list of parallelism levels to use in builds, default is 1,4. Passing empty string will use \"-j\"")
 parser.add_argument("--keep-log",
                     action="store_true",
