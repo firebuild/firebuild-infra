@@ -44,7 +44,7 @@ parser.add_argument("-j","--jobs",
                     default=str(os.cpu_count()),
                     help="list of parallelism levels to use in builds, default is 1,4. Passing empty string will use \"-j\"")
 parser.add_argument("test",
-                    help="name of the test to run",
+                    help="name of the test to run, or <name>:<type>:<timeout minutes>",
                     metavar="TEST")
 args = parser.parse_args()
 
@@ -242,10 +242,16 @@ def build_project(name, params):
 (soft, hard) = resource.getrlimit(resource.RLIMIT_CORE)
 resource.setrlimit(resource.RLIMIT_CORE, (hard, hard))
 
-# Read the test definitions
-with open("tests.conf", "r") as f:
-  tests = eval(f.read())
-
 # Run the test
-ret = build_project(args.test, tests[args.test])
+try:
+  (test, test_type, timeout) = args.test.split(":")
+  params = {'type' : test_type, 'timeout_minutes' : int(timeout)}
+except ValueError:
+  # Read the test definitions
+  with open("tests.conf", "r") as f:
+    tests = eval(f.read())
+  test = args.test
+  params = tests[test]
+
+ret = build_project(test, params)
 sys.exit(ret)
