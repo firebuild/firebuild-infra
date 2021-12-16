@@ -27,6 +27,7 @@
 
 import argparse
 import csv
+import glob
 import itertools
 import os
 import re
@@ -211,9 +212,15 @@ def build_project(name, params):
     end_timestamp = int(time.time())
 
     if status:
-      if os.system("test -f /var/tmp/core.firebuild*") == 0:
+      core_dumps = glob.glob("/var/tmp/core.*")
+      if core_dumps:
         os.system("sudo apt-get install -qqy gdb")
-        os.system("gdb -batch -ex \"bt full\" /usr/bin/firebuild /var/tmp/core.firebuild*")
+      for core_dump in core_dumps:
+        if re.match("/var/tmp/core\.firebuild", core_dump):
+          binary = "/usr/bin/firebuild"
+        else:
+          binary = "/usr/lib/*/libfirebuild.so.?"
+        os.system("gdb -batch -ex \"bt full\" " + binary + " " + core_dump)
 
     # Write a CSV row
     if not args.debugging:
