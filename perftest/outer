@@ -232,6 +232,7 @@ for test in tests_to_run:
   if status:
     ret = status
 
+  results = None
   if not args.debugging:
     # Get the timing results
     debug("Fetching the results")
@@ -241,7 +242,7 @@ for test in tests_to_run:
         f.write(results)
 
   stop_container(name)
-  if status:
+  if status and (results is None or float(results.split(",")[10])):
     os.rename(scriptfile, scriptfile_failed)
     rename_container(name, name + "-FAILED-" + timestamp)
   else:
