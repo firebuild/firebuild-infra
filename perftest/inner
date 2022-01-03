@@ -194,6 +194,7 @@ def build_project(name, params):
 
       restore_saved_tree(name, srcdir)
       debug("Building «" + name + "» with firebuild, empty cache")
+      os.system("touch /tmp/firebuild_started")
       os.system("firebuild --version")
       (status, times1) = run_build_cmd("env -C " + srcdir + " firebuild " + cmd, timeout_minutes)
 

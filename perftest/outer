@@ -156,6 +156,11 @@ def get_results(short_name):
   name = get_container_full_name(short_name)
   return os.popen("lxc exec " + name + " -- cat /home/ubuntu/buildtimes.csv 2>/dev/null").read()
 
+# Retrieve if firebuild was run
+def get_firebuild_started(short_name):
+  name = get_container_full_name(short_name)
+  return os.system("lxc exec " + name + " -- test -f /tmp/firebuild_started") == 0
+
 
 # Stop the container
 def stop_container(short_name):
@@ -232,7 +237,6 @@ for test in tests_to_run:
   if status:
     ret = status
 
-  results = None
   if not args.debugging:
     # Get the timing results
     debug("Fetching the results")
@@ -241,8 +245,9 @@ for test in tests_to_run:
       with open(os.path.expanduser("~/buildtimes.csv"), "a") as f:
         f.write(results)
 
+  firebuild_started = get_firebuild_started(name)
   stop_container(name)
-  if status and (results is None or float(results.split(",")[10])):
+  if status and firebuild_started:
     os.rename(scriptfile, scriptfile_failed)
     rename_container(name, name + "-FAILED-" + timestamp)
   else:
