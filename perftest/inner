@@ -121,8 +121,8 @@ def build_project(name, params):
   # Automatically generate "dl", "dir" and "cmd" if "type" is "deb"
   if params.get("type") == "deb":
     dl = "apt-get source " + name
-    # FIXME is this "sort -t. -n | tail -1" robust enough to get the latest version, if there was a package update?
-    version = os.popen("apt-cache showsrc " + name + " | grep ^Version: | cut -d' ' -f2 | cut -d- -f1 | cut -d: -f2 | sort -t. -n | tail -1").read().strip()
+    # FIXME is this "sort --version-sort | tail -1" robust enough to get the latest version, if there was a package update?
+    version = os.popen("apt-cache showsrc " + name + " | grep ^Version: | cut -d' ' -f2 | cut -d- -f1 | cut -d: -f2 | sort --version-sort | tail -1").read().strip()
     dir = name + "-" + version
     cmds = "env DEB_BUILD_OPTIONS='nocheck parallel={NR}' MAKEFLAGS=-j{NR} debian/rules build"
 
