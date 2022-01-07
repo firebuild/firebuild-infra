@@ -19,6 +19,13 @@ lxc exec firebuild-perftest-image-template -- cloud-init status --wait
 echo " · Adding deb-src entries to sources.list"
 lxc exec firebuild-perftest-image-template -- sh -c 'sed "s/^deb /deb-src /" < /etc/apt/sources.list > /etc/apt/sources.list.d/deb-src.list'
 
+echo " . Adding PPAs for backported and fixed packages"
+for ppa in ppa:rbalint/fmtlib ppa:rbalint/hopscotch-map ppa:rbalint/xxhash; do
+    lxc exec firebuild-perftest-image-template -- add-apt-repository -y -n $ppa
+done
+lxc exec firebuild-perftest-image-template -- apt-get update -qq
+lxc exec firebuild-perftest-image-template -- apt-get upgrade -y
+
 echo " · Disabling man-db creation"
 lxc exec firebuild-perftest-image-template -- sh -c 'echo man-db man-db/auto-update boolean false | debconf-set-selections'
 
