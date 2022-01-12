@@ -109,8 +109,9 @@ def create_and_start_container(short_name, pkgs, build_deps, firebuild_debs_dir=
   debug("Launching lxc instance «" + name + "»")
   os.system("lxc launch -p firebuild-perftest firebuild-perftest-image-template " + name)
 
-  debug("Waiting for cloud-init")
-  os.system("lxc exec " + name + " -- cloud-init status --wait")
+  debug("Waiting for system to start")
+  time.sleep(0.5)
+  os.system("lxc exec " + name + " -- systemctl is-system-running --wait")
 
   debug("Installing required packages")
   os.system("lxc exec " + name + " -- eatmydata apt-get update")
