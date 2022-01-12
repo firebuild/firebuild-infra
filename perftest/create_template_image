@@ -51,22 +51,26 @@ if [ -n "$PPAS" ]; then
 fi
 
 lxc exec firebuild-perftest-image-template -- apt-get update -qq
-lxc exec firebuild-perftest-image-template -- apt-get upgrade -y
+lxc exec firebuild-perftest-image-template -- apt-get install -yqq eatmydata
+lxc exec firebuild-perftest-image-template -- eatmydata apt-get upgrade -yqq
 
 echo " · Disabling man-db creation"
 lxc exec firebuild-perftest-image-template -- sh -c 'echo man-db man-db/auto-update boolean false | debconf-set-selections'
 
 echo " · Removing packages with background jobs likely interfering with tests"
-lxc exec firebuild-perftest-image-template -- eatmydata apt-get -y purge rsyslog unattended-upgrades
+lxc exec firebuild-perftest-image-template -- eatmydata apt-get -y purge rsyslog unattended-upgrades || true
 
 # This fails LP: #1878674
 lxc exec firebuild-perftest-image-template -- eatmydata apt-get -y purge snapd || true
 
 echo " · Disabling APT updates"
-lxc exec firebuild-perftest-image-template -- sed -i s/1/0/ /etc/apt/apt.conf.d/10periodic
+lxc exec firebuild-perftest-image-template -- bash -c 'sed -i s/1/0/ /etc/apt/apt.conf.d/10periodic 2> /dev/null || true'
+
+echo " · Installing needed packages"
+lxc exec firebuild-perftest-image-template -- eatmydata apt-get install -qqy git python3
 
 echo " · Purging unneeded packages"
-lxc exec firebuild-perftest-image-template -- eatmydata apt-get -y autoremove
+lxc exec firebuild-perftest-image-template -- eatmydata apt-get -y autoremove || true
 
 echo " · Creating ubuntu user if needed"
 lxc exec firebuild-perftest-image-template -- addgroup ubuntu --gid 1000 --disabled-password || true
