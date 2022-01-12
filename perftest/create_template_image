@@ -68,6 +68,10 @@ lxc exec firebuild-perftest-image-template -- sed -i s/1/0/ /etc/apt/apt.conf.d/
 echo " · Purging unneeded packages"
 lxc exec firebuild-perftest-image-template -- eatmydata apt-get -y autoremove
 
+echo " · Creating ubuntu user if needed"
+lxc exec firebuild-perftest-image-template -- addgroup ubuntu --gid 1000 --disabled-password || true
+lxc exec firebuild-perftest-image-template -- adduser ubuntu --uid 1000 --gid 1000 --disabled-password --gecos "" || true
+
 echo " · Stopping lxc instance"
 lxc stop firebuild-perftest-image-template
 
