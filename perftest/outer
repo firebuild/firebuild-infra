@@ -141,7 +141,7 @@ def build_firebuild():
   git_version = os.popen("git -C " + fbdir + " describe HEAD").read().strip().lstrip("v")
   os.system("lxc exec --env DEBIAN_FRONTEND=noninteractive " + name + " -- eatmydata apt-get -y build-dep /home/ubuntu/firebuild")
   if os.system("lxc exec --user 1000 --group 1000 --cwd /home/ubuntu/firebuild " + name +
-            " -- sh -c 'git clean -dfx && EDITOR=touch faketime \"" + get_commit_timestamp(fbdir) + "\" env DEBEMAIL=perftest@example.com dch -b -v" + git_version + " && env " + deb_build_env(args.debugging) + " dpkg-buildpackage'") != 0:
+            " -- sh -c 'git clean -dfx && EDITOR=touch faketime \"" + get_commit_timestamp(fbdir) + "\" env DEBEMAIL=perftest@example.com dch -b -v" + git_version.replace("-",".") + " && env " + deb_build_env(args.debugging) + " dpkg-buildpackage'") != 0:
     return None
   os.system("lxc exec " + name + " -- sh -c 'mkdir /home/ubuntu/firebuild-debs && mv /home/ubuntu/*.deb /home/ubuntu/*.ddeb /home/ubuntu/firebuild-debs'")
   firebuild_debs_dir = tempfile.mkdtemp()
