@@ -114,16 +114,16 @@ def create_and_start_container(short_name, pkgs, build_deps, firebuild_debs_dir=
   os.system("lxc exec " + name + " -- systemctl is-system-running --wait")
 
   debug("Installing required packages")
-  os.system("lxc exec " + name + " -- eatmydata apt-get update")
+  os.system("lxc exec " + name + " -- eatmydata apt-get update -qq")
   if firebuild_debs_dir:
     os.system("lxc file push -r " + firebuild_debs_dir + " " + name + "/root/")
-    os.system("lxc exec " + name + " -- sh -c 'eatmydata apt-get -y install /root/*/*.*deb'")
+    os.system("lxc exec " + name + " -- sh -c 'eatmydata apt-get -yqq install /root/*/*.*deb'")
     # make caching more deterministic
     os.system("lxc exec " + name + " -- sed -i 's|^min_cpu_time|//min_cpu_time|' /etc/firebuild.conf")
   if build_deps:
-    os.system("lxc exec --env DEBIAN_FRONTEND=noninteractive " + name + " -- eatmydata apt-get -y build-dep " + " ".join(build_deps))
+    os.system("lxc exec --env DEBIAN_FRONTEND=noninteractive " + name + " -- eatmydata apt-get -yqq build-dep " + " ".join(build_deps))
   if pkgs:
-    os.system("lxc exec --env DEBIAN_FRONTEND=noninteractive " + name + " -- eatmydata apt-get -y install " + " ".join(pkgs))
+    os.system("lxc exec --env DEBIAN_FRONTEND=noninteractive " + name + " -- eatmydata apt-get -yqq install " + " ".join(pkgs))
 
   debug("Copying up the fb-infra repo")
   # "lxc file push --recursive" is too slow, cannot set the uid/gid, and cannot strip a directory component
@@ -139,7 +139,7 @@ def build_firebuild():
 
   debug("Building firebuild")
   git_version = os.popen("git -C " + fbdir + " describe HEAD").read().strip().lstrip("v")
-  os.system("lxc exec --env DEBIAN_FRONTEND=noninteractive " + name + " -- eatmydata apt-get -y build-dep /home/ubuntu/firebuild")
+  os.system("lxc exec --env DEBIAN_FRONTEND=noninteractive " + name + " -- eatmydata apt-get -yqq build-dep /home/ubuntu/firebuild")
   if os.system("lxc exec --user 1000 --group 1000 --cwd /home/ubuntu/firebuild " + name +
             " -- sh -c 'git clean -dfx && EDITOR=touch faketime \"" + get_commit_timestamp(fbdir) + "\" env DEBEMAIL=perftest@example.com dch -b -v" + git_version.replace("-",".") + " && env " + deb_build_env(args.debugging) + " dpkg-buildpackage'") != 0:
     return None
