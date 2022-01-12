@@ -33,10 +33,10 @@ if lxc exec firebuild-perftest-image-template -- sh -c 'dpkg -l needrestart 2> /
 fi
 
 case $BASE_IMG in
-    "ubuntu:focal")
+    ubuntu*:focal)
         PPAS="ppa:rbalint/fmtlib ppa:rbalint/xxhash"
         ;;
-    "ubuntu:impish")
+    ubuntu*:impish)
         PPAS="ppa:rbalint/xxhash"
         ;;
     *)
