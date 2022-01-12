@@ -72,7 +72,7 @@ def debug(str):
   print(" 🔹 " + str, file=sys.stderr, flush=True)
 
 def deb_build_env(debug_build):
-  return ("DEB_CPPFLAGS_APPEND=" + ("" if debug_build else "-DNDEBUG")
+  return ("DEB_CPPFLAGS_APPEND=" + ("-DFB_EXTRA_DEBUG" if debug_build else "-DNDEBUG")
           + " DEB_CFLAGS_APPEND=" + ("\"-O0 -ggdb\"" if debug_build else "-O3")
           + " DEB_CXXLAGS_APPEND=" + ("\"-O0 -ggdb\"" if debug_build else "-O3"))
 
