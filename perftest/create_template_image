@@ -21,6 +21,11 @@ lxc exec firebuild-perftest-image-template -- cloud-init status --wait
 echo " · Adding deb-src entries to sources.list"
 lxc exec firebuild-perftest-image-template -- sh -c 'sed "s/^deb /deb-src /" < /etc/apt/sources.list > /etc/apt/sources.list.d/deb-src.list'
 
+if lxc exec firebuild-perftest-image-template -- sh -c 'dpkg -l needrestart 2> /dev/null | grep -q "^i"'; then
+    echo " · Removing needrestart"
+    lxc exec firebuild-perftest-image-template -- eatmydata apt-get -y purge needrestart
+fi
+
 case $BASE_IMG in
     "ubuntu:focal")
         PPAS="ppa:rbalint/fmtlib ppa:rbalint/xxhash"
