@@ -10,8 +10,10 @@
 #
 # See README_SETUP.txt for further details.
 
+BASE_IMG="${1:-ubuntu:focal}"
+
 echo " · Launching lxc instance"
-lxc launch -p firebuild-perftest ubuntu:focal firebuild-perftest-image-template
+lxc launch -p firebuild-perftest "$BASE_IMG" firebuild-perftest-image-template
 
 echo " · Waiting for cloud-init"
 lxc exec firebuild-perftest-image-template -- cloud-init status --wait
@@ -19,10 +21,24 @@ lxc exec firebuild-perftest-image-template -- cloud-init status --wait
 echo " · Adding deb-src entries to sources.list"
 lxc exec firebuild-perftest-image-template -- sh -c 'sed "s/^deb /deb-src /" < /etc/apt/sources.list > /etc/apt/sources.list.d/deb-src.list'
 
-echo " . Adding PPAs for backported and fixed packages"
-for ppa in ppa:rbalint/fmtlib ppa:rbalint/xxhash; do
-    lxc exec firebuild-perftest-image-template -- add-apt-repository -y -n $ppa
-done
+case $BASE_IMG in
+    "ubuntu:focal")
+        PPAS="ppa:rbalint/fmtlib ppa:rbalint/xxhash"
+        ;;
+    "ubuntu:impish")
+        PPAS="ppa:rbalint/xxhash"
+        ;;
+    *)
+        PPAS=""
+esac
+
+if [ -n "$PPAS" ]; then
+    echo " . Adding PPAs for backported and fixed packages"
+    for ppa in $PPAS; do
+        lxc exec firebuild-perftest-image-template -- add-apt-repository -y -n $ppa
+    done
+fi
+
 lxc exec firebuild-perftest-image-template -- apt-get update -qq
 lxc exec firebuild-perftest-image-template -- apt-get upgrade -y
 
