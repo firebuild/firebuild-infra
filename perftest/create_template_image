@@ -15,8 +15,9 @@ BASE_IMG="${1:-ubuntu:focal}"
 echo " · Launching lxc instance"
 lxc launch -p firebuild-perftest "$BASE_IMG" firebuild-perftest-image-template
 
-echo " · Waiting for cloud-init"
-lxc exec firebuild-perftest-image-template -- cloud-init status --wait
+echo " · Waiting for system to start"
+sleep 0.5
+lxc exec firebuild-perftest-image-template -- systemctl is-system-running --wait || true
 
 echo " · Adding deb-src entries to sources.list"
 lxc exec firebuild-perftest-image-template -- sh -c 'sed "s/^deb /deb-src /" < /etc/apt/sources.list > /etc/apt/sources.list.d/deb-src.list'
