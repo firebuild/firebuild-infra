@@ -44,6 +44,9 @@ parser.add_argument("-d", "--debugging",
 parser.add_argument("-j","--jobs",
                     default=str(os.cpu_count()),
                     help="list of parallelism levels to use in builds, default is 1,4. Passing empty string will use \"-j\"")
+parser.add_argument("--with-diffoscope",
+                    action="store_true",
+                    help="compare build results with diffoscope (needs diffoscope and fakeroot pre-installed)")
 parser.add_argument("test",
                     help="name of the test to run, or <name>:<type>:<timeout minutes>",
                     metavar="TEST")
@@ -117,6 +120,36 @@ def get_du(dir):
   return int(ret or "0")
 
 
+def build_debs(srcdir):
+  timeout_minutes = 5
+  source_epoch = os.popen("dpkg-parsechangelog -SDate -l " + srcdir + "/debian/changelog | date -f- +%s").read().strip()
+  cmd = "fakeroot env DEB_BUILD_OPTIONS='nocheck' SOURCE_DATE_EPOCH='{}' debian/rules binary".format(source_epoch)
+  run_build_cmd("env -C " + srcdir + " " + cmd, timeout_minutes)
+  os.system("env -C " + srcdir + " dpkg-genchanges -O../pkg.changes")
+
+
+def save_debs(srcdir, phase):
+  debs_dir = "{}/../debs-{}".format(srcdir, phase)
+  os.makedirs(debs_dir, exist_ok=True)
+  # Move .deb, .ddeb and .changes files to debs_dir
+  for f in glob.glob("{}/../*.deb".format(srcdir)):
+    os.system("mv {} {}".format(f, debs_dir))
+
+
+def debs_differ(dir1, dir2):
+  debs = set()
+  with os.scandir(dir1) as it:
+    for entry in it:
+        if entry.name.endswith('.deb') and entry.is_file():
+            debs.add(entry.name)
+  diffoscope_failed = False
+  for deb in debs:
+    diffoscope_ret = os.system("diffoscope --no-progress --text-color never {}/{} {}/{}".format(dir1, deb, dir2, deb))
+    if diffoscope_ret != 0:
+      diffoscope_failed = True
+  return diffoscope_failed
+
+
 def build_project(name, params):
   # Automatically generate "dl", "dir" and "cmd" if "type" is "deb"
   if params.get("type") == "deb":
@@ -186,6 +219,9 @@ def build_project(name, params):
       restore_saved_tree(name, srcdir)
       debug("Building «" + name + "» without firebuild")
       (status, times0) = run_build_cmd("env -C " + srcdir + " " + cmd, timeout_minutes)
+      if status == 0:
+        build_debs(srcdir)
+        save_debs(srcdir, 0)
 
     # Phase 1: If the previous phase was okay, build with firebuild for the first time
     if status == 0:
@@ -197,6 +233,9 @@ def build_project(name, params):
       os.system("touch /tmp/firebuild_started")
       os.system("firebuild --version")
       (status, times1) = run_build_cmd("env -C " + srcdir + " firebuild " + cmd, timeout_minutes)
+      if status == 0:
+        build_debs(srcdir)
+        save_debs(srcdir, 1)
 
     # Record cache size
     cachesize1 = get_du(fbcachedir)
@@ -206,12 +245,16 @@ def build_project(name, params):
       restore_saved_tree(name, srcdir)
       debug("Building «" + name + "» with firebuild, from cache")
       (status, times2) = run_build_cmd("env -C " + srcdir + " firebuild " + cmd, timeout_minutes)
+      if status == 0:
+        build_debs(srcdir)
+        save_debs(srcdir, 2)
 
     # Record cache size
     cachesize2 = get_du(fbcachedir)
 
     end_timestamp = int(time.time())
 
+    diffoscope_failed = False
     if status:
       core_dumps = glob.glob("/var/tmp/core.*")
       if core_dumps:
@@ -222,6 +265,11 @@ def build_project(name, params):
         else:
           binary = "/usr/lib/*/libfirebuild.so.?"
         os.system("gdb -batch -ex \"bt full\" " + binary + " " + core_dump)
+    else:
+      if args.with_diffoscope:
+        if not args.debugging:
+          diffoscope_failed = debs_differ(srcdir + "/../debs-0", srcdir + "/../debs-1")
+        diffoscope_failed = diffoscope_failed or debs_differ(srcdir + "/../debs-1", srcdir + "/../debs-2")
 
     # Write a CSV row
     if not args.debugging:
@@ -243,7 +291,7 @@ def build_project(name, params):
     debug("Removing «" + fbcachedir + "»")
     shutil.rmtree(fbcachedir, ignore_errors=True)
 
-  return 0
+  return 0 if not diffoscope_failed else 1
 
 
 # Enable core dumps

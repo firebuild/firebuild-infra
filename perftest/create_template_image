@@ -10,6 +10,20 @@
 #
 # See README_SETUP.txt for further details.
 
+WITH_DIFFOSCOPE=false
+
+while [ -n "$1" ]; do
+    case "$1" in
+        --with-diffoscope)
+            WITH_DIFFOSCOPE=true
+            shift
+            ;;
+        *)
+            break;
+            ;;
+    esac
+done
+
 BASE_IMG="${1:-ubuntu:focal}"
 
 echo " · Launching lxc instance"
@@ -68,6 +82,10 @@ lxc exec firebuild-perftest-image-template -- bash -c 'sed -i s/1/0/ /etc/apt/ap
 
 echo " · Installing needed packages"
 lxc exec firebuild-perftest-image-template -- eatmydata apt-get install -qqy git python3
+
+if $WITH_DIFFOSCOPE; then
+    lxc exec firebuild-perftest-image-template -- eatmydata apt-get install -qqy fakeroot diffoscope
+fi
 
 echo " · Purging unneeded packages"
 lxc exec firebuild-perftest-image-template -- eatmydata apt-get -yqq autoremove || true
