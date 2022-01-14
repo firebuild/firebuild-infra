@@ -215,6 +215,20 @@ for test in tests_to_run:
     name = test
     test_type = None
 
+  skip_parallel = ["blt",       # https://bugs.debian.org/1003455
+                   "dict-ns",   # All dict-* packages are compat 5
+                   "dict-ss",
+                   "dict-st",
+                   "dict-tn",
+                   "dict-ts",
+                   "dict-ve",
+                   "dict-xh",
+                   "dict-zu",
+                   "fbset"]
+  if test_type == "deb" and int(args.jobs) != 1 and name in skip_parallel:
+    debug("Skipping " + name + " because it does not support parallel building")
+    continue
+
   timestamp = time.strftime("%Y%m%d-%H%M%S")
   scriptfile = os.path.expanduser("~/firebuild-perftest-typescript-" + name + "-" + timestamp)
   scriptfile_failed = os.path.expanduser("~/firebuild-perftest-typescript-" + name + "-FAILED-" + timestamp)
