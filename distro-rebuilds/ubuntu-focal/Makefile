@@ -1,3 +1,7 @@
+
+main-pkgs-filtered: main-pkgs
+	grep -v '^linux' $<  > $@
+
 main-pkgs:
 	chdist -d chdist-dir create focal http://archive.ubuntu.com/ubuntu focal main ; \
 	chdist -d chdist-dir apt focal update && \
