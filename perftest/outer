@@ -216,7 +216,9 @@ for test in tests_to_run:
     test_type = None
 
   skip_parallel = ["blt",       # https://bugs.debian.org/1003455
-                   "dict-ns",   # All dict-* packages are compat 5
+                   "dict-af",   # Most dict-?? packages are compat 5
+                   "dict-nr",
+                   "dict-ns",
                    "dict-ss",
                    "dict-st",
                    "dict-tn",
