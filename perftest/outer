@@ -226,7 +226,8 @@ for test in tests_to_run:
                    "dict-ve",
                    "dict-xh",
                    "dict-zu",
-                   "fbset"]
+                   "fbset",
+                   "nvidia-settings"]
   if test_type == "deb" and int(args.jobs) != 1 and name in skip_parallel:
     debug("Skipping " + name + " because it does not support parallel building")
     continue
