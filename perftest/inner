@@ -219,7 +219,7 @@ def build_project(name, params):
       restore_saved_tree(name, srcdir)
       debug("Building «" + name + "» without firebuild")
       (status, times0) = run_build_cmd("env -C " + srcdir + " " + cmd, timeout_minutes)
-      if status == 0:
+      if status == 0 and args.with_diffoscope:
         build_debs(srcdir)
         save_debs(srcdir, 0)
 
@@ -233,7 +233,7 @@ def build_project(name, params):
       os.system("touch /tmp/firebuild_started")
       os.system("firebuild --version")
       (status, times1) = run_build_cmd("env -C " + srcdir + " firebuild " + cmd, timeout_minutes)
-      if status == 0:
+      if status == 0 and args.with_diffoscope:
         build_debs(srcdir)
         save_debs(srcdir, 1)
 
@@ -245,7 +245,7 @@ def build_project(name, params):
       restore_saved_tree(name, srcdir)
       debug("Building «" + name + "» with firebuild, from cache")
       (status, times2) = run_build_cmd("env -C " + srcdir + " firebuild " + cmd, timeout_minutes)
-      if status == 0:
+      if status == 0 and args.with_diffoscope:
         build_debs(srcdir)
         save_debs(srcdir, 2)
 
