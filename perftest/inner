@@ -219,6 +219,9 @@ def build_project(name, params):
       restore_saved_tree(name, srcdir)
       debug("Building «" + name + "» without firebuild")
       (status, times0) = run_build_cmd("env -C " + srcdir + " " + cmd, timeout_minutes)
+      # Firebuild-intercepted builds must finish well within twice the time of vanilla builds,
+      # but add extra 2 minutes just in case for very short builds
+      timeout_minutes = 2 + int(2 * times0["real"] / 60)
       if status == 0 and args.with_diffoscope:
         build_debs(srcdir)
         save_debs(srcdir, 0)
