@@ -47,6 +47,9 @@ parser.add_argument("-j","--jobs",
 parser.add_argument("--with-diffoscope",
                     action="store_true",
                     help="compare build results with diffoscope (needs diffoscope and fakeroot pre-installed)")
+parser.add_argument("--tests-conf",
+                    default="tests.conf",
+                    help="configuration file with test descriptions")
 parser.add_argument("test",
                     help="name of the test to run, or <name>:<type>:<timeout minutes>",
                     metavar="TEST")
@@ -307,7 +310,7 @@ try:
   params = {'type' : test_type, 'timeout_minutes' : int(timeout)}
 except ValueError:
   # Read the test definitions
-  with open("tests.conf", "r") as f:
+  with open(args.tests_conf, "r") as f:
     tests = eval(f.read())
   test = args.test
   params = tests[test]
