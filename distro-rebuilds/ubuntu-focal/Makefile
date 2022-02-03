@@ -1,6 +1,6 @@
 
 main-pkgs-filtered: main-pkgs
-	grep -v '^linux' $<  > $@
+	egrep -v '(^linux|golang)' $<  > $@
 
 main-pkgs:
 	chdist -d chdist-dir create focal http://archive.ubuntu.com/ubuntu focal main ; \
