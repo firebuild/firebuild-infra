@@ -60,6 +60,7 @@ parser.add_argument("--with-diffoscope",
                     action="store_true",
                     help="compare build results with diffoscope (needs diffoscope and fakeroot pre-installed)")
 parser.add_argument("--tests-conf",
+                    default="tests.conf",
                     help="configuration file with test descriptions")
 parser.add_argument("tests",
                     nargs="*",
