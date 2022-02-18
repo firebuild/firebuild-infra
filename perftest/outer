@@ -59,6 +59,9 @@ parser.add_argument("--keep-log",
 parser.add_argument("--with-diffoscope",
                     action="store_true",
                     help="compare build results with diffoscope (needs diffoscope and fakeroot pre-installed)")
+parser.add_argument("--sanitize",
+                    action="store_true",
+                    help="Build firebuild with Address Sanitizer and Undefined Behavior Sanitizer enabled")
 parser.add_argument("--tests-conf",
                     default="tests.conf",
                     help="configuration file with test descriptions")
@@ -77,10 +80,17 @@ if not os.path.isdir(fbdir):
 def debug(str):
   print(" 🔹 " + str, file=sys.stderr, flush=True)
 
-def deb_build_env(debug_build):
-  return ("DEB_CPPFLAGS_APPEND=" + ("-DFB_EXTRA_DEBUG" if debug_build else "-DNDEBUG")
-          + " DEB_CFLAGS_APPEND=" + ("\"-O0 -ggdb\"" if debug_build else "-O3")
-          + " DEB_CXXFLAGS_APPEND=" + ("\"-O0 -ggdb\"" if debug_build else "-O3"))
+def deb_build_env(debug_build, sanitize):
+  cppflags = "-DFB_EXTRA_DEBUG" if debug_build else "-DNDEBUG"
+  cflags = "-O0 -ggdb" if debug_build else "-O3"
+  cxxflags = "-O0 -ggdb" if debug_build else "-O3"
+
+  if sanitize:
+    cppflags += " -DSKIP_TEST_NULL_NONNULL_PARAMS=1"
+    cflags += " -static-libasan -fsanitize=undefined"
+    cxxflags += " -static-libasan -fsanitize=undefined"
+  return "DEB_CPPFLAGS_APPEND=\"{}\" DEB_CFLAGS_APPEND=\"{}\" DEB_CXXFLAGS_APPEND=\"{}\"".format(
+    cppflags, cflags, cxxflags)
 
 # Convert exit status from Unix/Python-style (high byte: exit code, low byte: signum)
 # to shell-style (128 + signum if there was a signal).
@@ -147,7 +157,7 @@ def build_firebuild():
   git_version = os.popen("git -C " + fbdir + " describe HEAD").read().strip().lstrip("v")
   os.system("lxc exec --env DEBIAN_FRONTEND=noninteractive " + name + " -- eatmydata apt-get -yqq build-dep /home/ubuntu/firebuild")
   if os.system("lxc exec --user 1000 --group 1000 --cwd /home/ubuntu/firebuild " + name +
-            " -- sh -c 'git clean -dfx && EDITOR=touch faketime \"" + get_commit_timestamp(fbdir) + "\" env DEBEMAIL=perftest@example.com dch -b -v" + git_version.replace("-",".") + " && env " + deb_build_env(args.debugging) + " dpkg-buildpackage'") != 0:
+            " -- sh -c 'git clean -dfx && EDITOR=touch faketime \"" + get_commit_timestamp(fbdir) + "\" env DEBEMAIL=perftest@example.com dch -b -v" + git_version.replace("-",".") + " && env " + deb_build_env(args.debugging, args.sanitize) + " dpkg-buildpackage'") != 0:
     return None
   os.system("lxc exec " + name + " -- sh -c 'mkdir /home/ubuntu/firebuild-debs && mv /home/ubuntu/*.deb /home/ubuntu/*.ddeb /home/ubuntu/firebuild-debs'")
   firebuild_debs_dir = tempfile.mkdtemp()
