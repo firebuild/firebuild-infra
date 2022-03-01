@@ -56,6 +56,9 @@ parser.add_argument("-j","--jobs",
 parser.add_argument("--keep-log",
                     action="store_true",
                     help="keep the log file even after successful run")
+parser.add_argument("--stop-on-first-failure",
+                    action="store_true",
+                    help="stop tests after the first failed one")
 parser.add_argument("--with-diffoscope",
                     action="store_true",
                     help="compare build results with diffoscope (needs diffoscope and fakeroot pre-installed)")
@@ -286,6 +289,8 @@ for test in tests_to_run:
   if status and firebuild_started:
     os.rename(scriptfile, scriptfile_failed)
     rename_container(name, name + "-FAILED-" + timestamp)
+    if args.stop_on_first_failure:
+      break
   else:
     if not args.keep_log:
       os.remove(scriptfile)
