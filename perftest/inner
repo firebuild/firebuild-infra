@@ -72,6 +72,8 @@ def shell_exit_status(status):
 
 
 builddir = os.path.expanduser("~/perftest-build")
+# debugging slows down firebuild, especially if "firebuild -d proc" is set
+timeout_multiplier = 2 if args.debugging else 1
 
 
 def run_build_cmd(cmd, timeout_minutes=0):
@@ -238,7 +240,7 @@ def build_project(name, params):
       debug("Building «" + name + "» with firebuild, empty cache")
       os.system("touch /tmp/firebuild_started")
       os.system("firebuild --version")
-      (status, times1) = run_build_cmd("env -C " + srcdir + " firebuild " + cmd, timeout_minutes)
+      (status, times1) = run_build_cmd("env -C " + srcdir + " firebuild " + cmd, timeout_minutes * timeout_multiplier)
       if status == 0 and args.with_diffoscope:
         build_debs(srcdir)
         save_debs(srcdir, 1)
