@@ -738,8 +738,8 @@
     ]
   },
   "timezone": "",
-  "title": "FireBuild Dashboard",
-  "uid": "FireBuild",
+  "title": "Firebuild Dashboard",
+  "uid": "Firebuild",
   "variables": {
     "list": []
   },
