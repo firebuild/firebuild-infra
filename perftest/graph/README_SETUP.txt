@@ -77,7 +77,7 @@ Run `./generate_grafana_dashboard_config`, this creates the config file
 `grafana_dashboard.json` from a simple jinja template.
 
 During the initial setup, click on "Home" near the upper left corner.
-During a subsequent config update, click on "FireBuild Dashboard" near
+During a subsequent config update, click on "Firebuild Dashboard" near
 the upper left corner.
 
 Click on "Import dashboard" in the right column. Upload

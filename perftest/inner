@@ -281,7 +281,7 @@ def build_project(name, params):
 
     # Write a CSV row
     if not args.debugging:
-      firebuild_version = os.popen("firebuild --version | awk '/FireBuild Git / {print $3}'").read().strip()
+      firebuild_version = os.popen("firebuild --version | awk '/Firebuild Git / {print $3}'").read().strip()
       firebuild_timestamp =  os.popen("date -d \"$(dpkg-parsechangelog -l /usr/share/doc/firebuild/changelog.gz -S Date)\" +%s").read().strip()
       with open(os.path.expanduser("~/buildtimes.csv"), "a") as csvfile:
         writer = csv.writer(csvfile, lineterminator='\n')
