@@ -47,6 +47,9 @@ parser.add_argument("-j","--jobs",
 parser.add_argument("--with-diffoscope",
                     action="store_true",
                     help="compare build results with diffoscope (needs diffoscope and fakeroot pre-installed)")
+parser.add_argument("-r","--generate-report",
+                    action="store_true",
+                    help="Generate a report for each firebuild-intercepted run and save them")
 parser.add_argument("--tests-conf",
                     default="tests.conf",
                     help="configuration file with test descriptions")
@@ -240,7 +243,8 @@ def build_project(name, params):
       debug("Building «" + name + "» with firebuild, empty cache")
       os.system("touch /tmp/firebuild_started")
       os.system("firebuild --version")
-      (status, times1) = run_build_cmd("env -C " + srcdir + " firebuild " + cmd, timeout_minutes * timeout_multiplier)
+      firebuild_params = "-r/tmp/report-1.html" if args.generate_report else ""
+      (status, times1) = run_build_cmd("env -C {} firebuild {} -- {}".format(srcdir, firebuild_params, cmd), timeout_minutes * timeout_multiplier)
       if status == 0 and args.with_diffoscope:
         build_debs(srcdir)
         save_debs(srcdir, 1)
@@ -252,7 +256,8 @@ def build_project(name, params):
     if status == 0:
       restore_saved_tree(name, srcdir)
       debug("Building «" + name + "» with firebuild, from cache")
-      (status, times2) = run_build_cmd("env -C " + srcdir + " firebuild " + cmd, timeout_minutes)
+      firebuild_params = "-r/tmp/report-2.html" if args.generate_report else ""
+      (status, times2) = run_build_cmd("env -C {} firebuild {} -- {}".format(srcdir, firebuild_params, cmd), timeout_minutes)
       if status == 0 and args.with_diffoscope:
         build_debs(srcdir)
         save_debs(srcdir, 2)
