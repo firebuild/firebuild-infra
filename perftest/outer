@@ -249,9 +249,10 @@ for test in tests_to_run:
                    "dict-xh",
                    "dict-zu",
                    "fbset",
+                   "gnome-terminal",  # https://github.com/rbalint/fb/issues/739
                    "nss",
                    "nvidia-settings"]
-  if test_type == "deb" and int(args.jobs) != 1 and name in skip_parallel:
+  if int(args.jobs) != 1 and name in skip_parallel:
     debug("Skipping " + name + " because it does not support parallel building")
     continue
 
