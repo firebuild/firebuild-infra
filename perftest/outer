@@ -68,6 +68,12 @@ parser.add_argument("--sanitize",
 parser.add_argument("-r","--generate-report",
                     action="store_true",
                     help="Generate a report for each firebuild-intercepted run and save them")
+parser.add_argument("--with-ccache",
+                    action="store_true",
+                    help="Install and use ccache along with firebuild")
+parser.add_argument("--only-ccache",
+                    action="store_true",
+                    help="Install and use ccache instead of firebuild")
 parser.add_argument("--tests-conf",
                     default="tests.conf",
                     help="configuration file with test descriptions")
@@ -225,9 +231,9 @@ else:
 ret = 0
 
 # build firebuild
-firebuild_debs_dir = build_firebuild()
+firebuild_debs_dir = build_firebuild() if not args.only_ccache else None
 
-if not firebuild_debs_dir:
+if not firebuild_debs_dir and not args.only_ccache:
   sys.exit(1)
 
 for test in tests_to_run:
@@ -263,7 +269,7 @@ for test in tests_to_run:
   container_name = get_container_full_name(name)
   params = tests[name] if test_type is None else {}
   build_deps = [name]
-  deps = []
+  deps = [] if not args.with_ccache and not args.only_ccache else ["ccache"]
   if "deps" in params:
    deps.append(params["deps"])
 
@@ -275,6 +281,8 @@ for test in tests_to_run:
                      container_name + " -- ./inner " + ("--debugging " if args.debugging else "") +
                      "-j " + args.jobs + " " + ("--with-diffoscope " if args.with_diffoscope else "") +
                      ("--generate-report " if args.generate_report else "") +
+                     ("--with-ccache " if args.with_ccache else "") +
+                     ("--only-ccache " if args.only_ccache else "") +
                      ("--tests-conf {} ".format(args.tests_conf) if args.tests_conf else "") +
                      name + ((":" + test_type + ":" + timeout) if test_type is not None else "") +"' " + scriptfile)
   status = shell_exit_status(status)
@@ -309,5 +317,6 @@ for test in tests_to_run:
       os.remove(scriptfile)
     delete_container(name)
 
-shutil.rmtree(firebuild_debs_dir)
+if firebuild_debs_dir:
+  shutil.rmtree(firebuild_debs_dir)
 sys.exit(ret)

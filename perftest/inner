@@ -50,6 +50,12 @@ parser.add_argument("--with-diffoscope",
 parser.add_argument("-r","--generate-report",
                     action="store_true",
                     help="Generate a report for each firebuild-intercepted run and save them")
+parser.add_argument("--with-ccache",
+                    action="store_true",
+                    help="Use ccache along with firebuild")
+parser.add_argument("--only-ccache",
+                    action="store_true",
+                    help="Use ccache instead of firebuild")
 parser.add_argument("--tests-conf",
                     default="tests.conf",
                     help="configuration file with test descriptions")
@@ -186,6 +192,7 @@ def build_project(name, params):
   dldir = builddir + "/" + name  # e.g. /home/ubuntu/perftest-build/mc
   srcdir = dldir + "/" + dir     # e.g. /home/ubuntu/perftest-build/mc/mc-4.8.24
   fbcachedir = dldir + "/" + ".fbcache"
+  ccachedir = os.path.expanduser("~/.ccache")
   os.environ["FIREBUILD_CACHE_DIR"] = fbcachedir
   timeout_minutes = params["timeout_minutes"]
 
@@ -222,11 +229,19 @@ def build_project(name, params):
     times1 = { "real": 0, "user": 0, "sys": 0 }
     times2 = { "real": 0, "user": 0, "sys": 0 }
 
-    # Phase 0: Build without firebuild
+    env_cmd = "env -C {}{}".format(srcdir, " PATH=/usr/lib/ccache:$PATH" if (args.with_ccache or args.only_ccache) else "")
+    if args.only_ccache:
+      build_tool = "ccache"
+    elif args.with_ccache:
+      build_tool = "firebuild+ccache"
+    else:
+      build_tool = "firebuild"
+
+    # Phase 0: Build without firebuild (or ccache)
     if not args.debugging:
       restore_saved_tree(name, srcdir)
-      debug("Building «" + name + "» without firebuild")
-      (status, times0) = run_build_cmd("env -C " + srcdir + " " + cmd, timeout_minutes)
+      debug("Building «{}» without {}".format(name, build_tool))
+      (status, times0) = run_build_cmd("env -C " + srcdir + " CCACHE_DISABLE=1 " + cmd, timeout_minutes)
       # Firebuild-intercepted builds must finish well within twice the time of vanilla builds,
       # but add extra 2 minutes just in case for very short builds
       timeout_minutes = 2 + int(2 * times0["real"] / 60)
@@ -236,34 +251,41 @@ def build_project(name, params):
 
     # Phase 1: If the previous phase was okay, build with firebuild for the first time
     if status == 0:
-      debug("Removing «" + fbcachedir + "»")
-      shutil.rmtree(fbcachedir, ignore_errors=True)
+      if not args.only_ccache:
+        debug("Removing «" + fbcachedir + "»")
+        shutil.rmtree(fbcachedir, ignore_errors=True)
+      if args.with_ccache or args.only_ccache:
+        debug("Removing «" + ccachedir + "»")
+        shutil.rmtree(ccachedir, ignore_errors=True)
 
       restore_saved_tree(name, srcdir)
-      debug("Building «" + name + "» with firebuild, empty cache")
+      debug("Building «{}» with {}, empty cache".format(name, build_tool))
       os.system("touch /tmp/firebuild_started")
-      os.system("firebuild --version")
+      if not args.only_ccache:
+        os.system("firebuild --version")
       firebuild_params = "-r/tmp/report-1.html" if args.generate_report else ""
-      (status, times1) = run_build_cmd("env -C {} firebuild {} -- {}".format(srcdir, firebuild_params, cmd), timeout_minutes * timeout_multiplier)
+      firebuil_cmd = "firebuild {} -- ".format(firebuild_params) if not args.only_ccache else ""
+      (status, times1) = run_build_cmd("{} {}{}".format(env_cmd, firebuil_cmd, cmd), timeout_minutes * timeout_multiplier)
       if status == 0 and args.with_diffoscope:
         build_debs(srcdir)
         save_debs(srcdir, 1)
 
     # Record cache size
-    cachesize1 = get_du(fbcachedir)
+    cachesize1 = get_du(fbcachedir) + get_du(ccachedir)
 
     # Phase 2: If the previous phase was okay, build with firebuild for the second time
     if status == 0:
       restore_saved_tree(name, srcdir)
-      debug("Building «" + name + "» with firebuild, from cache")
+      debug("Building «{}» with {}, from cache".format(name, build_tool))
       firebuild_params = "-r/tmp/report-2.html" if args.generate_report else ""
-      (status, times2) = run_build_cmd("env -C {} firebuild {} -- {}".format(srcdir, firebuild_params, cmd), timeout_minutes)
+      firebuil_cmd = "firebuild {} -- ".format(firebuild_params) if not args.only_ccache else ""
+      (status, times2) = run_build_cmd("{} {}{}".format(env_cmd, firebuil_cmd, cmd), timeout_minutes * timeout_multiplier)
       if status == 0 and args.with_diffoscope:
         build_debs(srcdir)
         save_debs(srcdir, 2)
 
     # Record cache size
-    cachesize2 = get_du(fbcachedir)
+    cachesize2 = get_du(fbcachedir) + get_du(ccachedir)
 
     end_timestamp = int(time.time())
 
@@ -286,12 +308,23 @@ def build_project(name, params):
 
     # Write a CSV row
     if not args.debugging:
-      firebuild_version = os.popen("firebuild --version | awk '/Firebuild Git / {print $3}'").read().strip()
-      firebuild_timestamp =  os.popen("date -d \"$(dpkg-parsechangelog -l /usr/share/doc/firebuild/changelog.gz -S Date)\" +%s").read().strip()
+      build_tool_version = ""
+      build_tool_timestamp = ""
+      if not args.only_ccache:
+        build_tool_version  = os.popen("firebuild --version | awk '/Firebuild Git / {print $3}'").read().strip()
+        build_tool_timestamp = os.popen("date -d \"$(dpkg-parsechangelog -l /usr/share/doc/firebuild/changelog.gz -S Date)\" +%s").read().strip()
+      else:
+        build_tool_timestamp = os.popen("date -d \"$(dpkg-parsechangelog -l /usr/share/doc/ccache/changelog.Debian.gz -S Date)\" +%s").read().strip()
+
+      if args.with_ccache:
+        build_tool_version += "+"
+      if args.with_ccache or args.only_ccache:
+        build_tool_version +=  os.popen("ccache --version | awk '/ccache version / {print \"ccache-\" $3}'").read().strip()
+
       with open(os.path.expanduser("~/buildtimes.csv"), "a") as csvfile:
         writer = csv.writer(csvfile, lineterminator='\n')
         writer.writerow([start_timestamp, end_timestamp,
-                         firebuild_version, firebuild_timestamp,
+                         build_tool_version, build_tool_timestamp,
                          name, cmd, status,
                          "{:.3f}".format(times0["real"]), "{:.3f}".format(times0["user"]), "{:.3f}".format(times0["sys"]),
                          "{:.3f}".format(times1["real"]), "{:.3f}".format(times1["user"]), "{:.3f}".format(times1["sys"]),
