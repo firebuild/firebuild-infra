@@ -48,7 +48,7 @@ fi
 
 case $BASE_IMG in
     ubuntu*:focal)
-        PPAS="ppa:rbalint/fmtlib ppa:rbalint/xxhash"
+        PPAS="ppa:rbalint/xxhash"
         ;;
     ubuntu*:impish)
         PPAS="ppa:rbalint/xxhash"
