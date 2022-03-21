@@ -92,15 +92,11 @@ if not os.path.isdir(fbdir):
 def debug(str):
   print(" 🔹 " + str, file=sys.stderr, flush=True)
 
-def deb_build_env(debug_build, sanitize):
+def deb_build_env(debug_build):
   cppflags = "-DFB_EXTRA_DEBUG" if debug_build else "-DNDEBUG"
   cflags = "-O0 -ggdb" if debug_build else "-O3"
   cxxflags = "-O0 -ggdb" if debug_build else "-O3"
 
-  if sanitize:
-    cppflags += " -DSKIP_TEST_NULL_NONNULL_PARAMS=1"
-    cflags += " -static-libasan -fsanitize=undefined"
-    cxxflags += " -static-libasan -fsanitize=undefined"
   return "DEB_CPPFLAGS_APPEND=\"{}\" DEB_CFLAGS_APPEND=\"{}\" DEB_CXXFLAGS_APPEND=\"{}\"".format(
     cppflags, cflags, cxxflags)
 
@@ -168,8 +164,12 @@ def build_firebuild():
   debug("Building firebuild")
   git_version = os.popen("git -C " + fbdir + " describe HEAD").read().strip().lstrip("v")
   os.system("lxc exec --env DEBIAN_FRONTEND=noninteractive " + name + " -- eatmydata apt-get -yqq build-dep /home/ubuntu/firebuild")
+  if args.sanitize:
+    if os.system("lxc exec --user 1000 --group 1000 --cwd /home/ubuntu/firebuild " + name +
+                 " -- sh -c \"printf '\n\noverride_dh_auto_configure:\n\tdh_auto_configure -- -DWITH_JEMALLOC=OFF -DSANITIZE=ON\n' >> debian/rules\"") != 0:
+      return None
   if os.system("lxc exec --user 1000 --group 1000 --cwd /home/ubuntu/firebuild " + name +
-            " -- sh -c 'git clean -dfx && EDITOR=touch faketime \"" + get_commit_timestamp(fbdir) + "\" env DEBEMAIL=perftest@example.com dch -b -v" + git_version.replace("-",".") + " && env " + deb_build_env(args.debugging, args.sanitize) + " dpkg-buildpackage'") != 0:
+            " -- sh -c 'git clean -dfx && EDITOR=touch faketime \"" + get_commit_timestamp(fbdir) + "\" env DEBEMAIL=perftest@example.com dch -b -v" + git_version.replace("-",".") + " && env " + deb_build_env(args.debugging) + " dpkg-buildpackage'") != 0:
     return None
   os.system("lxc exec " + name + " -- sh -c 'mkdir /home/ubuntu/firebuild-debs && mv /home/ubuntu/*.deb /home/ubuntu/*.ddeb /home/ubuntu/firebuild-debs'")
   firebuild_debs_dir = tempfile.mkdtemp()
