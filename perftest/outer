@@ -47,8 +47,8 @@ parser.add_argument("-d", "--debugging",
                     action="store_true",
                     help="debugging firebuild (build it in Debug mode, skip non-firebuild build, don't record performance)")
 parser.add_argument("-f", "--firebuilddir",
-                    default="~/firebuild",
-                    help="root of the firebuild git tree, default is ~/firebuild",
+                    default="~/projects/firebuild",
+                    help="root of the firebuild git tree, default is ~/projects/firebuild",
                     metavar="DIR")
 parser.add_argument("-j","--jobs",
                     default=str(os.cpu_count()),
