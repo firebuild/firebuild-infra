@@ -260,7 +260,6 @@ for test in tests_to_run:
                    "dict-xh",
                    "dict-zu",
                    "fbset",
-                   "gnome-terminal",  # https://github.com/rbalint/fb/issues/739
                    "nss",
                    "nvidia-settings"]
   if int(args.jobs) != 1 and name in skip_parallel:
