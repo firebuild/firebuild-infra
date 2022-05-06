@@ -260,6 +260,8 @@ for test in tests_to_run:
                    "dict-xh",
                    "dict-zu",
                    "fbset",
+                   "lua5.2",    # Racy src/Makefile https://github.com/rbalint/fb/issues/840
+                   "lua5.3",
                    "nss",
                    "nvidia-settings"]
   if int(args.jobs) != 1 and name in skip_parallel:
