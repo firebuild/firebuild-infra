@@ -78,6 +78,9 @@ parser.add_argument("--extra-fb-opts1",
                     help="Extra firebuild options for the 1st intercepted build. Use the --extra-fb-opts1=\"...\" notation.")
 parser.add_argument("--extra-fb-opts2",
                     help="Extra firebuild options for the 2nd intercepted build. Use the --extra-fb-opts2=\"...\" notation.")
+parser.add_argument("--enable-tests",
+                    help="Enable tests in the intercepted builds",
+                    action="store_true")
 parser.add_argument("--tests-conf",
                     default="tests.conf",
                     help="configuration file with test descriptions")
@@ -290,6 +293,7 @@ for test in tests_to_run:
                      ("--only-ccache " if args.only_ccache else "") +
                      ("--extra-fb-opts1=\"{}\" ".format(args.extra_fb_opts1) if args.extra_fb_opts1 else "") +
                      ("--extra-fb-opts2=\"{}\" ".format(args.extra_fb_opts2) if args.extra_fb_opts2 else "") +
+                     ("--enable-tests " if args.enable_tests else "") +
                      ("--tests-conf {} ".format(args.tests_conf) if args.tests_conf else "") +
                      name + ((":" + test_type + ":" + timeout) if test_type is not None else "") +"' " + scriptfile)
   status = shell_exit_status(status)
