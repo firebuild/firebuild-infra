@@ -274,6 +274,11 @@ for test in tests_to_run:
     debug("Skipping " + name + " because it does not support parallel building")
     continue
 
+  skip_with_tests = ["glib2.0"]  # Tests if pipes are blocking or not being laggy https://github.com/rbalint/fb/issues/842
+  if int(args.enable_tests) and name in skip_with_tests:
+    debug("Skipping " + name + " because tests would fail")
+    continue
+
   timestamp = time.strftime("%Y%m%d-%H%M%S")
   scriptfile = os.path.expanduser("~/firebuild-perftest-typescript-" + name + "-" + timestamp)
   scriptfile_failed = os.path.expanduser("~/firebuild-perftest-typescript-" + name + "-FAILED-" + timestamp)
