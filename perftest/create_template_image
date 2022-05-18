@@ -59,6 +59,8 @@ esac
 
 if [ -n "$PPAS" ]; then
     echo " . Adding PPAs for backported and fixed packages"
+    # run apt-get update before adding the PPAs to make sure that network is already up
+    lxc exec firebuild-perftest-image-template -- apt-get update -qq
     for ppa in $PPAS; do
         lxc exec firebuild-perftest-image-template -- add-apt-repository -y -n $ppa
     done
