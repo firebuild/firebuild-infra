@@ -96,6 +96,10 @@ builddir = os.path.expanduser("~/perftest-build")
 # debugging slows down firebuild, especially if "firebuild -d proc" is set
 timeout_multiplier = 2 if args.debugging else 1
 
+# time to wait before starting a measured step
+# this allows the system to settle from previous actions like finish pending writes
+settle_seconds = 5
+
 def run_build_cmd(cmd, timeout_minutes=0):
   start_monotonic = time.monotonic()
   start_res = resource.getrusage(resource.RUSAGE_CHILDREN)
@@ -139,6 +143,7 @@ def restore_saved_tree(name, dir):
                   symlinks=True, ignore_dangling_symlinks=True)
   if not args.debugging:
     os.sync()
+    time.sleep(settle_seconds)
 
 
 # Get disk usage, in kilobytes, or 0 if the directory doesn't exist
