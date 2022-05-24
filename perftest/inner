@@ -60,6 +60,8 @@ parser.add_argument("--extra-fb-opts1",
                     help="Extra firebuild options for the 1st intercepted build. Use the --extra-fb-opts1=\"...\" notation.")
 parser.add_argument("--extra-fb-opts2",
                     help="Extra firebuild options for the 2nd intercepted build. Use the --extra-fb-opts2=\"...\" notation.")
+parser.add_argument("--extra-version-string",
+                    help="Append \"-\" and this string to the version, like vN.N-NNN-gXXXXX-<extra version string>.")
 parser.add_argument("--enable-tests",
                     help="Enable tests in the intercepted builds",
                     action="store_true")
@@ -343,7 +345,7 @@ def build_project(name, params):
       with open(os.path.expanduser("~/buildtimes.csv"), "a") as csvfile:
         writer = csv.writer(csvfile, lineterminator='\n')
         writer.writerow([start_timestamp, end_timestamp,
-                         build_tool_version, build_tool_timestamp,
+                         "{}{}".format(build_tool_version, ("-" + args.extra_version_string) if args.extra_version_string else ""), build_tool_timestamp,
                          name, cmd, status,
                          "{:.3f}".format(times0["real"]), "{:.3f}".format(times0["user"]), "{:.3f}".format(times0["sys"]),
                          "{:.3f}".format(times1["real"]), "{:.3f}".format(times1["user"]), "{:.3f}".format(times1["sys"]),
