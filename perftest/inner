@@ -182,6 +182,7 @@ def build_project(name, params):
     dl = "apt-get source " + name
     # FIXME is this "sort --version-sort | tail -1" robust enough to get the latest version, if there was a package update?
     version = os.popen("apt-cache showsrc " + name + " | grep ^Version: | cut -d' ' -f2 | cut -d- -f1 | cut -d: -f2 | sort --version-sort | tail -1").read().strip()
+    os_codename = os.popen("lsb_release -s -c").read().strip()
     dirname = name + "-" + version
     # if debhelper is in use or config.status target exists run configure as preparation
     prep = "if ! grep -qP '\tdh ' debian/rules; then ! grep -qP '^config.status: ' debian/rules || make -f debian/rules config.status; else ( (grep -q ^override_dh_auto_configure: debian/rules || printf '\n\noverride_dh_auto_configure:\n\tdh_auto_configure\n' >> debian/rules) && debian/rules override_dh_auto_configure) fi" if args.separate_deb_prep else None
@@ -345,7 +346,7 @@ def build_project(name, params):
       with open(os.path.expanduser("~/buildtimes.csv"), "a") as csvfile:
         writer = csv.writer(csvfile, lineterminator='\n')
         writer.writerow([start_timestamp, end_timestamp,
-                         "{}{}".format(build_tool_version, ("-" + args.extra_version_string) if args.extra_version_string else ""), build_tool_timestamp,
+                         "{}-{}{}".format(os_codename, build_tool_version, ("-" + args.extra_version_string) if args.extra_version_string else ""), build_tool_timestamp,
                          name, cmd, status,
                          "{:.3f}".format(times0["real"]), "{:.3f}".format(times0["user"]), "{:.3f}".format(times0["sys"]),
                          "{:.3f}".format(times1["real"]), "{:.3f}".format(times1["user"]), "{:.3f}".format(times1["sys"]),
