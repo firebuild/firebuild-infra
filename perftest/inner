@@ -68,6 +68,8 @@ parser.add_argument("--enable-tests",
 parser.add_argument("--separate-deb-prep",
                     help="Try a heuristic to run the configuration phase before measuring the \"deb\" type builds",
                     action="store_true")
+parser.add_argument("--timestamp-params",
+                    help="Pipe build log through 'ts < timestamp-params >'")
 parser.add_argument("--tests-conf",
                     default="tests.conf",
                     help="configuration file with test descriptions")
@@ -106,6 +108,9 @@ def run_build_cmd(cmd, timeout_minutes=0):
 
   if timeout_minutes > 0:
     cmd = "timeout -s ABRT " + str(timeout_minutes) + "m " + cmd
+
+  if args.timestamp_params:
+    cmd = cmd + " 2>&1 | ts {}".format(args.timestamp_params)
 
   debug("Running «" + cmd + "»")
   status = os.system(cmd)
