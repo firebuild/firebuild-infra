@@ -80,6 +80,8 @@ parser.add_argument("--extra-fb-opts2",
                     help="Extra firebuild options for the 2nd intercepted build. Use the --extra-fb-opts2=\"...\" notation.")
 parser.add_argument("--extra-version-string",
                     help="Append \"-\" and this string to the version, like vN.N-NNN-gXXXXX-<extra version string>.")
+parser.add_argument("--timestamp-params",
+                    help="Pipe build log through 'ts < timestamp-params >'")
 parser.add_argument("--enable-tests",
                     help="Enable tests in the intercepted builds",
                     action="store_true")
@@ -291,6 +293,8 @@ for test in tests_to_run:
   deps = [] if not args.with_ccache and not args.only_ccache else ["ccache"]
   if "deps" in params:
    deps.append(params["deps"])
+  if args.timestamp_params:
+       deps.append("moreutils")
 
   create_and_start_container(name, deps, build_deps, firebuild_debs_dir)
 
@@ -305,6 +309,7 @@ for test in tests_to_run:
                      ("--extra-fb-opts1=\"{}\" ".format(args.extra_fb_opts1) if args.extra_fb_opts1 else "") +
                      ("--extra-fb-opts2=\"{}\" ".format(args.extra_fb_opts2) if args.extra_fb_opts2 else "") +
                      ("--extra-version-string=\"{}\" ".format(args.extra_version_string) if args.extra_version_string else "") +
+                     ("--timestamp-params=\"{}\" ".format(args.timestamp_params) if args.timestamp_params else "") +
                      ("--enable-tests " if args.enable_tests else "") +
                      ("--separate-deb-prep " if args.separate_deb_prep else "") +
                      ("--tests-conf {} ".format(args.tests_conf) if args.tests_conf else "") +
