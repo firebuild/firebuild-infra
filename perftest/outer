@@ -258,7 +258,8 @@ for test in tests_to_run:
     name = test
     test_type = None
 
-  skip_parallel = ["blt",       # https://bugs.debian.org/1003455
+  skip_parallel = ["anna",      # Racy, https://github.com/rbalint/fb/issues/897
+                   "blt",       # https://bugs.debian.org/1003455
                    "dict-af",   # Most dict-?? packages are compat 5
                    "dict-nr",
                    "dict-ns",
@@ -270,10 +271,16 @@ for test in tests_to_run:
                    "dict-xh",
                    "dict-zu",
                    "fbset",
+                   "ispell-uk",  # Does not support parallel build, compat 7
                    "lua5.2",    # Racy src/Makefile https://github.com/rbalint/fb/issues/840
                    "lua5.3",
+                   "main-menu",        # Runs clean and build targets in parallel, like anna
                    "nss",
-                   "nvidia-settings"]
+                   "nvidia-settings",
+                   "partconf",        # Runs clean and build targets in parallel, like anna
+                   "wireless-regdb",  # does not support parallel build, override_dh_auto_build should use && \ at the end of each line
+                   "xfsprogs"   # does not support parallel build, runs ./configure two times in parallel
+                   ]
   if int(args.jobs) != 1 and name in skip_parallel:
     debug("Skipping " + name + " because it does not support parallel building")
     continue
