@@ -40,6 +40,9 @@ for(i in c(0, 1, 2)) {
     totals <- data.frame(t(100 * (colSums(bt2[, start_col:end_col], na.rm = TRUE) - colSums(bt1[, start_col:end_col], na.rm = TRUE)) / colSums(bt1[, start_col:end_col], na.rm = TRUE)))
     row.names(totals) <- c(" Sum. incr.:")
     message("")
+    max.line <- which.max(100 * (bt2[, start_col] - bt1[, start_col]) / bt1[, start_col])
+    message("Max. real slowdown (%): ", names2[max.line])
+    message("")
     print(totals, justify="")
 }
 
