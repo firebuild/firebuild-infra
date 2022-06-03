@@ -144,8 +144,7 @@ def restore_saved_tree(name, dir):
   debug("Restoring the source tree of «" + name + "»")
   if os.access(dir, os.F_OK):
     shutil.rmtree(dir)
-  shutil.copytree(dir + ".saved", dir,
-                  symlinks=True, ignore_dangling_symlinks=True)
+  os.system("cp -a {}.saved {}".format(dir, dir))
   if not args.debugging:
     os.sync()
     time.sleep(settle_seconds)
