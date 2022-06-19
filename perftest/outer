@@ -176,7 +176,7 @@ def build_firebuild():
   os.system("tar c -C " + fbdir + " --transform=s@^[.]/@firebuild/@ . 2>/dev/null | lxc exec --user 1000 --group 1000 --cwd /home/ubuntu " + name + " -- tar x")
 
   debug("Building firebuild")
-  git_version = os.popen("git -C " + fbdir + " describe HEAD").read().strip().lstrip("v")
+  git_version = os.popen("git -C " + fbdir + " describe --abbrev=8 HEAD").read().strip().lstrip("v")
   os.system("lxc exec --env DEBIAN_FRONTEND=noninteractive " + name + " -- eatmydata apt-get -yqq build-dep /home/ubuntu/firebuild")
   if args.sanitize:
     if os.system("lxc exec --user 1000 --group 1000 --cwd /home/ubuntu/firebuild " + name +
