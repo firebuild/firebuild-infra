@@ -40,6 +40,9 @@ if [ -n "$(apt-config dump | grep Proxy)" ]; then
     apt-config dump | grep Proxy | lxc exec firebuild-perftest-image-template -- sh -c 'cat > /etc/apt/apt.conf.d/99-firebuild-apt-proxy'
 fi
 
+# Always install phased updates to fix occasional uninstallability problems, like:
+# https://bugs.launchpad.net/ubuntu/+source/systemd/+bug/1979579
+echo 'APT::Get::Always-Include-Phased-Updates "true";' | lxc exec firebuild-perftest-image-template -- sh -c 'cat > /etc/apt/apt.conf.d/99-firebuild-phased-updates'
 
 if lxc exec firebuild-perftest-image-template -- sh -c 'dpkg -l needrestart 2> /dev/null | grep -q "^i"'; then
     echo " · Removing needrestart"
