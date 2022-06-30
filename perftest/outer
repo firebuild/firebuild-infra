@@ -107,7 +107,7 @@ def debug(str):
   print(" 🔹 " + str, file=sys.stderr, flush=True)
 
 def deb_build_env(debug_build):
-  cppflags = "-DFB_EXTRA_DEBUG" if debug_build else "-DNDEBUG"
+  cppflags = "-DFB_EXTRA_DEBUG" if debug_build else ""
   cflags = "-O0 -ggdb" if debug_build else "-O3"
   cxxflags = "-O0 -ggdb" if debug_build else "-O3"
 
