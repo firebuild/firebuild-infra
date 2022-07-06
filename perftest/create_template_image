@@ -30,7 +30,15 @@ echo " · Launching lxc instance"
 lxc launch -p firebuild-perftest "$BASE_IMG" firebuild-perftest-image-template
 
 echo " · Waiting for system to start"
-sleep 0.5
+case $BASE_IMG in
+    ubuntu*:focal)
+        sleep 1
+        ;;
+    *)
+        # No sleep needed
+        ;;
+esac
+
 lxc exec firebuild-perftest-image-template -- systemctl is-system-running --wait || true
 
 echo " · Adding deb-src entries to sources.list"
