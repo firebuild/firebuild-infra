@@ -24,7 +24,7 @@ while [ -n "$1" ]; do
     esac
 done
 
-BASE_IMG="${1:-ubuntu:focal}"
+BASE_IMG="${1:-ubuntu:jammy}"
 
 echo " · Launching lxc instance"
 lxc launch -p firebuild-perftest "$BASE_IMG" firebuild-perftest-image-template
