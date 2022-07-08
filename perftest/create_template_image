@@ -51,10 +51,10 @@ fi
 
 case $BASE_IMG in
     ubuntu*:focal)
-        PPAS="ppa:rbalint/xxhash"
+        PPAS="ppa:rbalint/hopscotch-map ppa:rbalint/xxhash"
         ;;
     *)
-        PPAS=""
+        PPAS="ppa:rbalint/hopscotch-map"
 esac
 
 if [ -n "$PPAS" ]; then
