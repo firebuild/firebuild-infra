@@ -53,9 +53,6 @@ case $BASE_IMG in
     ubuntu*:focal)
         PPAS="ppa:rbalint/xxhash"
         ;;
-    ubuntu*:impish)
-        PPAS="ppa:rbalint/xxhash"
-        ;;
     *)
         PPAS=""
 esac
