@@ -107,7 +107,7 @@ def run_build_cmd(cmd, timeout_minutes=0):
   start_res = resource.getrusage(resource.RUSAGE_CHILDREN)
 
   if timeout_minutes > 0:
-    cmd = "timeout -s ABRT " + str(timeout_minutes) + "m " + cmd
+    cmd = "timeout -s ABRT " + str(timeout_minutes) + "m " + cmd + " < /dev/null"
 
   if args.timestamp_params:
     cmd = cmd + " 2>&1 | ts {}".format(args.timestamp_params)
