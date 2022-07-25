@@ -103,6 +103,9 @@ parser.add_argument("--extra-fb-opts2",
                     help="Extra firebuild options for the 2nd intercepted build. Use the --extra-fb-opts2=\"...\" notation.")
 parser.add_argument("--extra-version-string",
                     help="Append \"-\" and this string to the version, like vN.N-NNN-gXXXXX-<extra version string>.")
+parser.add_argument("--compressed-cache-size",
+                    action="store_true",
+                    help="Measure cache's zstd-compressed size.")
 parser.add_argument("--timestamp-params",
                     help="Pipe build log through 'ts < timestamp-params >'")
 parser.add_argument("--enable-tests",
@@ -354,6 +357,7 @@ for test in tests_to_run:
                      ("--extra-fb-opts1=\"{}\" ".format(args.extra_fb_opts1) if args.extra_fb_opts1 else "") +
                      ("--extra-fb-opts2=\"{}\" ".format(args.extra_fb_opts2) if args.extra_fb_opts2 else "") +
                      ("--extra-version-string=\"{}\" ".format(args.extra_version_string) if args.extra_version_string else "") +
+                     ("--compressed-cache-size " if args.compressed_cache_size else "") +
                      ("--timestamp-params=\"{}\" ".format(args.timestamp_params) if args.timestamp_params else "") +
                      ("--enable-tests " if args.enable_tests else "") +
                      ("--separate-deb-prep " if args.separate_deb_prep else "") +
