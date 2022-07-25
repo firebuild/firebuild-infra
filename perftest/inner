@@ -220,7 +220,7 @@ def build_project(name, params):
   dldir = builddir + "/" + name   # e.g. /home/ubuntu/perftest-build/mc
   srcdir = dldir + "/" + dirname  # e.g. /home/ubuntu/perftest-build/mc/mc-4.8.24
   fbcachedir = dldir + "/" + ".fbcache"
-  ccachedir = os.path.expanduser("~/.ccache")
+  ccachedir = os.path.expanduser("~/.cache/ccache")
   os.environ["FIREBUILD_CACHE_DIR"] = fbcachedir
   timeout_minutes = params["timeout_minutes"]
 
