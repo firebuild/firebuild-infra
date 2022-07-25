@@ -88,6 +88,9 @@ parser.add_argument("--enable-tests",
 parser.add_argument("--separate-deb-prep",
                     help="Try a heuristic to run the configuration phase before measuring the \"deb\" type builds",
                     action="store_true")
+parser.add_argument("--compressed-cache-size",
+                    action="store_true",
+                    help="Measure cache's zstd-compressed size.")
 parser.add_argument("--timestamp-params",
                     help="Pipe build log through 'ts < timestamp-params >'")
 parser.add_argument("--tests-conf",
@@ -190,9 +193,12 @@ def prep_tree(name, srcdir, prep):
 
 
 # Get disk usage, in kilobytes, or 0 if the directory doesn't exist
-def get_du(dir):
-  ret = os.popen("du -s " + dir + " 2>/dev/null | cut -f1").read().strip()
-  return int(ret or "0")
+def get_du(path):
+  if args.compressed_cache_size:
+    du_cmd = "tar -cf - " + path + " 2> /dev/null | zstd | wc -c"
+  else:
+    du_cmd = "du -s " + path + " 2>/dev/null | cut -f1"
+  return int(os.popen(du_cmd).read().strip()  or "0") // 1024
 
 
 def build_debs(srcdir):
