@@ -185,6 +185,24 @@ def debs_differ(dir1, dir2):
       diffoscope_failed = True
   return diffoscope_failed
 
+def build_with_firebuild(name, srcdir, build_tool, fbcachedir, ccachedir, cache_status, env_cmd, cmd, extra_fb_opts, build_number, timeout_minutes):
+  restore_saved_tree(name, srcdir)
+  debug("Building «{}» with {}, {}".format(name, build_tool, cache_status))
+  os.system("touch /tmp/firebuild_started")
+  if not args.only_ccache:
+    os.system("firebuild --version")
+  firebuild_params = " -r/tmp/report-{}.html".format(str(build_number)) if args.generate_report else ""
+  if extra_fb_opts:
+    firebuild_params += " " + extra_fb_opts
+  firebuil_cmd = "firebuild{} -- ".format(firebuild_params) if not args.only_ccache else ""
+  (status, times) = run_build_cmd("{} {}{}".format(env_cmd, firebuil_cmd, cmd), timeout_minutes * timeout_multiplier)
+  if status == 0 and args.with_diffoscope:
+    build_debs(srcdir)
+    save_debs(srcdir, build_number)
+  # Record cache size
+  cachesize = get_du(fbcachedir) + get_du(ccachedir)
+  return (status, times, cachesize)
+
 
 def build_project(name, params):
   # Automatically generate "dl", "dir", "prep" and "cmd" if "type" is "deb"
@@ -285,39 +303,11 @@ def build_project(name, params):
       if args.with_ccache or args.only_ccache:
         debug("Removing «" + ccachedir + "»")
         shutil.rmtree(ccachedir, ignore_errors=True)
-
-      restore_saved_tree(name, srcdir)
-      debug("Building «{}» with {}, empty cache".format(name, build_tool))
-      os.system("touch /tmp/firebuild_started")
-      if not args.only_ccache:
-        os.system("firebuild --version")
-      firebuild_params = " -r/tmp/report-1.html" if args.generate_report else ""
-      if args.extra_fb_opts1:
-        firebuild_params += " " + args.extra_fb_opts1
-      firebuil_cmd = "firebuild{} -- ".format(firebuild_params) if not args.only_ccache else ""
-      (status, times1) = run_build_cmd("{} {}{}".format(env_cmd, firebuil_cmd, cmd), timeout_minutes * timeout_multiplier)
-      if status == 0 and args.with_diffoscope:
-        build_debs(srcdir)
-        save_debs(srcdir, 1)
-
-    # Record cache size
-    cachesize1 = get_du(fbcachedir) + get_du(ccachedir)
+      (status, times1, cachesize1) = build_with_firebuild(name, srcdir, build_tool, fbcachedir, ccachedir, "empty cache", env_cmd, cmd, args.extra_fb_opts1, 1, timeout_minutes)
 
     # Phase 2: If the previous phase was okay, build with firebuild for the second time
     if status == 0:
-      restore_saved_tree(name, srcdir)
-      debug("Building «{}» with {}, from cache".format(name, build_tool))
-      firebuild_params = " -r/tmp/report-2.html" if args.generate_report else ""
-      if args.extra_fb_opts2:
-        firebuild_params += " " + args.extra_fb_opts2
-      firebuil_cmd = "firebuild{} -- ".format(firebuild_params) if not args.only_ccache else ""
-      (status, times2) = run_build_cmd("{} {}{}".format(env_cmd, firebuil_cmd, cmd), timeout_minutes * timeout_multiplier)
-      if status == 0 and args.with_diffoscope:
-        build_debs(srcdir)
-        save_debs(srcdir, 2)
-
-    # Record cache size
-    cachesize2 = get_du(fbcachedir) + get_du(ccachedir)
+      (status, times2, cachesize2) = build_with_firebuild(name, srcdir, build_tool, fbcachedir, ccachedir, "from cache", env_cmd, cmd, args.extra_fb_opts2, 2, timeout_minutes)
 
     end_timestamp = int(time.time())
 
