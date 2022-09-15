@@ -150,6 +150,13 @@ def restore_saved_tree(name, dir):
     time.sleep(settle_seconds)
 
 
+def save_tree(name, srcdir):
+  debug("Saving the source tree of «" + name + "»")
+  if os.access(srcdir + ".saved", os.F_OK):
+    shutil.rmtree(srcdir + ".saved")
+  os.rename(srcdir, srcdir + ".saved")
+
+
 # Get disk usage, in kilobytes, or 0 if the directory doesn't exist
 def get_du(dir):
   ret = os.popen("du -s " + dir + " 2>/dev/null | cut -f1").read().strip()
@@ -285,10 +292,7 @@ def build_project(name, params):
       debug("Preparation error")
       shutil.rmtree(srcdir, ignore_errors=True)
       return shell_exit_status(ret)
-  debug("Saving the source tree of «" + name + "»")
-  if os.access(srcdir + ".saved", os.F_OK):
-    shutil.rmtree(srcdir + ".saved")
-  os.rename(srcdir, srcdir + ".saved")
+  save_tree(name, srcdir)
 
   parallel_levels = args.jobs.split(",")
   for (cmd_pattern, jobs) in itertools.product(cmds, parallel_levels):
