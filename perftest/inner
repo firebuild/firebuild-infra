@@ -200,9 +200,17 @@ def debs_differ(dir1, dir2):
       diffoscope_failed = True
   return diffoscope_failed
 
-def build_with_firebuild(name, srcdir, build_tool, fbcachedir, ccachedir, cache_status, env_cmd, cmd, extra_fb_opts, build_number, timeout_minutes):
-  restore_saved_tree(name, srcdir)
-  debug("Building «{}» with {}, {}".format(name, build_tool, cache_status))
+def build_with_firebuild(name, srcdir, commit, prep, build_tool, fbcachedir, ccachedir, cache_status, env_cmd, cmd, extra_fb_opts, build_number, timeout_minutes):
+  if commit:
+    os.system("git -C {} reset --hard {}".format(srcdir, commit))
+    os.system("git -C {} clean -dxf".format(srcdir))
+    if prep:
+      ret = prep_tree(name, srcdir, prep)
+      if (ret):
+        return (ret, { "real": 0, "user": 0, "sys": 0 }, 0)
+  else:
+    restore_saved_tree(name, srcdir)
+  debug("Building «{}»{} with {}, {}".format(name, (" " + commit) if commit else "", build_tool, cache_status))
   os.system("touch /tmp/firebuild_started")
   if not args.only_ccache:
     os.system("firebuild --version")
@@ -247,7 +255,7 @@ def write_csv_row(start_timestamp, os_codename, name, cmd, status, times0, times
 
 def build_project(name, params):
   # Automatically generate "dl", "dir", "prep" and "cmd" if "type" is "deb"
-  if params.get("type") == "deb":
+  if params.get("type") in {"deb", "deb+git"}:
     dl = "apt-get source " + name
     # FIXME is this "sort --version-sort | tail -1" robust enough to get the latest version, if there was a package update?
     version = os.popen("apt-cache showsrc " + name + " | grep ^Version: | cut -d' ' -f2 | cut -d- -f1 | cut -d: -f2 | sort --version-sort | tail -1").read().strip()
@@ -293,12 +301,16 @@ def build_project(name, params):
     debug("Download error")
     shutil.rmtree(dldir, ignore_errors=True)
     return shell_exit_status(ret)
+  commits = None if not params.get("git_range") else os.popen("git -C {} log --reverse --pretty=format:%h {} --".format(srcdir, params.get("git_range"))).read().split()
+  if commits:
+    os.system("git -C {} reset --hard {}".format(srcdir, commits[0]))
   if prep:
     ret = prep_tree(name, srcdir, prep)
     if ret:
       shutil.rmtree(srcdir, ignore_errors=True)
       return shell_exit_status(ret)
-  save_tree(name, srcdir)
+  if not params.get("git_range"):
+    save_tree(name, srcdir)
 
   parallel_levels = args.jobs.split(",")
   for (cmd_pattern, jobs) in itertools.product(cmds, parallel_levels):
@@ -321,7 +333,8 @@ def build_project(name, params):
 
     # Phase 0: Build without firebuild (or ccache)
     if not args.debugging:
-      restore_saved_tree(name, srcdir)
+      if not commits:
+        restore_saved_tree(name, srcdir)
       debug("Building «{}» without {}".format(name, build_tool))
       (status, times0) = run_build_cmd("env -C " + srcdir + " CCACHE_DISABLE=1 " + cmd, timeout_minutes)
       # Firebuild-intercepted builds must finish well within twice the time of vanilla builds,
@@ -339,15 +352,20 @@ def build_project(name, params):
       if args.with_ccache or args.only_ccache:
         debug("Removing «" + ccachedir + "»")
         shutil.rmtree(ccachedir, ignore_errors=True)
-      (status, times1, cachesize1) = build_with_firebuild(name, srcdir, build_tool, fbcachedir, ccachedir, "empty cache", env_cmd, cmd, args.extra_fb_opts1, 1, timeout_minutes)
+      (status, times1, cachesize1) = build_with_firebuild(name, srcdir, commits[0] if commits else None, prep, build_tool, fbcachedir, ccachedir, "empty cache", env_cmd, cmd, args.extra_fb_opts1, 1, timeout_minutes)
+    else:
+      return status
 
     # Phase 2: If the previous phase was okay, build with firebuild for the second time
     if status == 0:
-      (status, times2, cachesize2) = build_with_firebuild(name, srcdir, build_tool, fbcachedir, ccachedir, "from cache", env_cmd, cmd, args.extra_fb_opts2, 2, timeout_minutes)
-
-    # Write a CSV row
-    if not args.debugging:
-      write_csv_row(start_timestamp, os_codename, name, cmd, status, times0, times1, times2, cachesize1, cachesize2, jobs)
+      for commit in commits if commits else [None]:
+        (status, times2, cachesize2) = build_with_firebuild(name, srcdir, commit, prep, build_tool, fbcachedir, ccachedir, "from cache", env_cmd, cmd, args.extra_fb_opts2, 2, timeout_minutes)
+        # Write a CSV row
+        if not args.debugging:
+          write_csv_row(start_timestamp, os_codename, name, cmd, status, times0, times1, times2, cachesize1, cachesize2, jobs)
+    else:
+      if not args.debugging:
+          write_csv_row(start_timestamp, os_codename, name, cmd, status, times0, times1, times2, cachesize1, 0, jobs)
 
     diffoscope_failed = False
     if status:
