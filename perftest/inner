@@ -157,6 +157,14 @@ def save_tree(name, srcdir):
   os.rename(srcdir, srcdir + ".saved")
 
 
+def prep_tree(name, srcdir, prep):
+    debug("Preparing the source of «" + name + "»")
+    ret = os.system("cd " + srcdir + " && " + prep)
+    if ret:
+      debug("Preparation error")
+    return ret
+
+
 # Get disk usage, in kilobytes, or 0 if the directory doesn't exist
 def get_du(dir):
   ret = os.popen("du -s " + dir + " 2>/dev/null | cut -f1").read().strip()
@@ -286,10 +294,8 @@ def build_project(name, params):
     shutil.rmtree(dldir, ignore_errors=True)
     return shell_exit_status(ret)
   if prep:
-    debug("Preparing the source of «" + name + "»")
-    ret = os.system("cd " + srcdir + " && " + prep)
+    ret = prep_tree(name, srcdir, prep)
     if ret:
-      debug("Preparation error")
       shutil.rmtree(srcdir, ignore_errors=True)
       return shell_exit_status(ret)
   save_tree(name, srcdir)
