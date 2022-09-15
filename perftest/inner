@@ -204,6 +204,32 @@ def build_with_firebuild(name, srcdir, build_tool, fbcachedir, ccachedir, cache_
   return (status, times, cachesize)
 
 
+def write_csv_row(start_timestamp, os_codename, name, cmd, status, times0, times1, times2, cachesize1, cachesize2, jobs):
+  end_timestamp = int(time.time())
+  build_tool_version = ""
+  build_tool_timestamp = ""
+  if not args.only_ccache:
+    build_tool_version  = os.popen("firebuild --version | awk '/Firebuild Git / {print $3}'").read().strip()
+    build_tool_timestamp = os.popen("date -d \"$(dpkg-parsechangelog -l /usr/share/doc/firebuild/changelog.gz -S Date)\" +%s").read().strip()
+  else:
+    build_tool_timestamp = os.popen("date -d \"$(dpkg-parsechangelog -l /usr/share/doc/ccache/changelog.Debian.gz -S Date)\" +%s").read().strip()
+
+  if args.with_ccache:
+    build_tool_version += "+"
+  if args.with_ccache or args.only_ccache:
+    build_tool_version +=  os.popen("ccache --version | awk '/ccache version / {print \"ccache-\" $3}'").read().strip()
+
+  with open(os.path.expanduser("~/buildtimes.csv"), "a") as csvfile:
+    writer = csv.writer(csvfile, lineterminator='\n')
+    writer.writerow([start_timestamp, end_timestamp,
+                     "{}-{}{}".format(os_codename, build_tool_version, ("-" + args.extra_version_string) if args.extra_version_string else ""), build_tool_timestamp,
+                     name, cmd, status,
+                     "{:.3f}".format(times0["real"]), "{:.3f}".format(times0["user"]), "{:.3f}".format(times0["sys"]),
+                     "{:.3f}".format(times1["real"]), "{:.3f}".format(times1["user"]), "{:.3f}".format(times1["sys"]),
+                     "{:.3f}".format(times2["real"]), "{:.3f}".format(times2["user"]), "{:.3f}".format(times2["sys"]),
+                     cachesize1, cachesize2, jobs])
+
+
 def build_project(name, params):
   # Automatically generate "dl", "dir", "prep" and "cmd" if "type" is "deb"
   if params.get("type") == "deb":
@@ -309,7 +335,9 @@ def build_project(name, params):
     if status == 0:
       (status, times2, cachesize2) = build_with_firebuild(name, srcdir, build_tool, fbcachedir, ccachedir, "from cache", env_cmd, cmd, args.extra_fb_opts2, 2, timeout_minutes)
 
-    end_timestamp = int(time.time())
+    # Write a CSV row
+    if not args.debugging:
+      write_csv_row(start_timestamp, os_codename, name, cmd, status, times0, times1, times2, cachesize1, cachesize2, jobs)
 
     diffoscope_failed = False
     if status:
@@ -327,31 +355,6 @@ def build_project(name, params):
         if not args.debugging:
           diffoscope_failed = debs_differ(srcdir + "/../debs-0", srcdir + "/../debs-1")
         diffoscope_failed = diffoscope_failed or debs_differ(srcdir + "/../debs-1", srcdir + "/../debs-2")
-
-    # Write a CSV row
-    if not args.debugging:
-      build_tool_version = ""
-      build_tool_timestamp = ""
-      if not args.only_ccache:
-        build_tool_version  = os.popen("firebuild --version | awk '/Firebuild Git / {print $3}'").read().strip()
-        build_tool_timestamp = os.popen("date -d \"$(dpkg-parsechangelog -l /usr/share/doc/firebuild/changelog.gz -S Date)\" +%s").read().strip()
-      else:
-        build_tool_timestamp = os.popen("date -d \"$(dpkg-parsechangelog -l /usr/share/doc/ccache/changelog.Debian.gz -S Date)\" +%s").read().strip()
-
-      if args.with_ccache:
-        build_tool_version += "+"
-      if args.with_ccache or args.only_ccache:
-        build_tool_version +=  os.popen("ccache --version | awk '/ccache version / {print \"ccache-\" $3}'").read().strip()
-
-      with open(os.path.expanduser("~/buildtimes.csv"), "a") as csvfile:
-        writer = csv.writer(csvfile, lineterminator='\n')
-        writer.writerow([start_timestamp, end_timestamp,
-                         "{}-{}{}".format(os_codename, build_tool_version, ("-" + args.extra_version_string) if args.extra_version_string else ""), build_tool_timestamp,
-                         name, cmd, status,
-                         "{:.3f}".format(times0["real"]), "{:.3f}".format(times0["user"]), "{:.3f}".format(times0["sys"]),
-                         "{:.3f}".format(times1["real"]), "{:.3f}".format(times1["user"]), "{:.3f}".format(times1["sys"]),
-                         "{:.3f}".format(times2["real"]), "{:.3f}".format(times2["user"]), "{:.3f}".format(times2["sys"]),
-                         cachesize1, cachesize2, jobs])
 
     if status:
       return status
