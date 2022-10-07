@@ -62,6 +62,9 @@ parser.add_argument("--stop-on-first-failure",
 parser.add_argument("--with-diffoscope",
                     action="store_true",
                     help="compare build results with diffoscope (needs diffoscope and fakeroot pre-installed)")
+parser.add_argument("--build-firebuild-with-clang",
+                    action="store_true",
+                    help="Build the firebuild package using Clang instead of GCC")
 parser.add_argument("--sanitize",
                     action="store_true",
                     help="Build firebuild with Address Sanitizer and Undefined Behavior Sanitizer enabled")
@@ -106,13 +109,13 @@ if not os.path.isdir(fbdir):
 def debug(str):
   print(" 🔹 " + str, file=sys.stderr, flush=True)
 
-def deb_build_env(debug_build):
+def deb_build_env(debug_build, with_clang):
   cppflags = "-DFB_EXTRA_DEBUG" if debug_build else ""
   cflags = "-O0 -ggdb" if debug_build else ""
   cxxflags = "-O0 -ggdb" if debug_build else ""
 
-  return "DEB_CPPFLAGS_APPEND=\"{}\" DEB_CFLAGS_APPEND=\"{}\" DEB_CXXFLAGS_APPEND=\"{}\"".format(
-    cppflags, cflags, cxxflags)
+  return "DEB_CPPFLAGS_APPEND=\"{}\" DEB_CFLAGS_APPEND=\"{}\" DEB_CXXFLAGS_APPEND=\"{}\"{}".format(
+    cppflags, cflags, cxxflags, " CC=clang CXX=clang++ LD=ld.lld"if with_clang else "")
 
 # Convert exit status from Unix/Python-style (high byte: exit code, low byte: signum)
 # to shell-style (128 + signum if there was a signal).
@@ -178,13 +181,15 @@ def build_firebuild():
   debug("Building firebuild")
   git_version = os.popen("git -C " + fbdir + " describe --abbrev=8 HEAD").read().strip().lstrip("v")
   os.system("lxc exec --env DEBIAN_FRONTEND=noninteractive " + name + " -- eatmydata apt-get -yqq build-dep /home/ubuntu/firebuild")
+  if args.build_firebuild_with_clang:
+    os.system("lxc exec --env DEBIAN_FRONTEND=noninteractive " + name + " -- eatmydata apt-get -yqq install clang lld")
   if args.sanitize:
     if os.system("lxc exec --user 1000 --group 1000 --cwd /home/ubuntu/firebuild " + name +
                  " -- sh -c \"printf '\n\noverride_dh_auto_configure:\n\tdh_auto_configure -- -DWITH_JEMALLOC=OFF -DSANITIZE=ON\n' >> debian/rules\"") != 0:
       return None
   if os.system("lxc exec --user 1000 --group 1000 --cwd /home/ubuntu/firebuild " + name +
                " -- sh -x -c 'git clean -dfx && EDITOR=touch  env DEBEMAIL=perftest@example.com dch -b -v{} && sed -i \"s/\\\\(^ -- .*>  \\\\).*/\\\\1{}/\" debian/changelog && env {} dpkg-buildpackage'".format(
-                 git_version.replace("-","."), get_commit_timestamp(fbdir), deb_build_env(args.debugging))) != 0:
+                 git_version.replace("-","."), get_commit_timestamp(fbdir), deb_build_env(args.debugging, args.build_firebuild_with_clang))) != 0:
     return None
   os.system("lxc exec " + name + " -- sh -c 'mkdir /home/ubuntu/firebuild-debs && mv /home/ubuntu/*.deb /home/ubuntu/*.ddeb /home/ubuntu/firebuild-debs'")
   firebuild_debs_dir = tempfile.mkdtemp()
