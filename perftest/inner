@@ -217,6 +217,7 @@ def build_with_firebuild(name, srcdir, commit, prep, build_tool, fbcachedir, cca
   firebuild_params = " -r/tmp/report-{}.html".format(str(build_number)) if args.generate_report else ""
   if extra_fb_opts:
     firebuild_params += " " + extra_fb_opts
+  firebuild_params += " --show-stats"
   firebuil_cmd = "firebuild{} -- ".format(firebuild_params) if not args.only_ccache else ""
   (status, times) = run_build_cmd("{} {}{}".format(env_cmd, firebuil_cmd, cmd), timeout_minutes * timeout_multiplier)
   if status == 0 and args.with_diffoscope:
