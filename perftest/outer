@@ -158,6 +158,7 @@ def create_and_start_container(short_name, pkgs, build_deps, firebuild_debs_dir=
   os.system("lxc exec " + name + " -- eatmydata apt-get update -qq")
   if firebuild_debs_dir:
     os.system("lxc file push -r " + firebuild_debs_dir + " " + name + "/root/")
+    os.system("lxc exec " + name + " -- sh -c 'echo debconf firebuild/license-accepted select true | debconf-set-selections'")
     os.system("lxc exec " + name + " -- sh -c 'eatmydata apt-get -yqq install /root/*/*.*deb'")
     # make caching more deterministic
     os.system("lxc exec " + name + " -- sed -i 's|^min_cpu_time|//min_cpu_time|' /etc/firebuild.conf")
