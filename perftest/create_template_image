@@ -32,7 +32,7 @@ lxc launch -p firebuild-perftest "$BASE_IMG" firebuild-perftest-image-template
 
 echo " · Waiting for system to start"
 case $BASE_IMG in
-    ubuntu*:focal*)
+    ubuntu*:bionic*|ubuntu*:focal*)
         sleep 1
         ;;
     *)
@@ -59,6 +59,10 @@ if lxc exec firebuild-perftest-image-template -- sh -c 'dpkg -l needrestart 2> /
 fi
 
 case $BASE_IMG in
+    ubuntu*:bionic*)
+        # ubuntu-toolchain-r/test distributes GCC-10
+        PPAS="ppa:firebuild/build-deps ppa:ubuntu-toolchain-r/test"
+        ;;
     ubuntu*:focal*)
         PPAS="ppa:firebuild/build-deps"
         ;;
@@ -93,6 +97,13 @@ lxc exec firebuild-perftest-image-template -- bash -c 'sed -i s/1/0/ /etc/apt/ap
 
 echo " · Installing needed and most likely needed packages"
 lxc exec firebuild-perftest-image-template -- eatmydata apt-get install -qqy git python3 graphviz build-essential
+
+case $BASE_IMG in
+    ubuntu*:bionic*)
+        # firebuild needs those fresher dependencies to build on Bionic
+        lxc exec firebuild-perftest-image-template -- eatmydata apt-get install -qqy cmake debhelper/bionic-backports dwz/bionic-backports
+        ;;
+esac
 
 if $WITH_DIFFOSCOPE; then
     lxc exec firebuild-perftest-image-template -- eatmydata apt-get install -qqy fakeroot diffoscope
