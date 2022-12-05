@@ -27,6 +27,7 @@ done
 BASE_IMG="${1:-ubuntu:jammy}"
 
 echo " · Launching lxc instance"
+lxc delete --force firebuild-perftest-image-template 2> /dev/null || true
 lxc launch -p firebuild-perftest "$BASE_IMG" firebuild-perftest-image-template
 
 echo " · Waiting for system to start"
