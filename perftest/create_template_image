@@ -92,7 +92,7 @@ echo " · Disabling APT updates"
 lxc exec firebuild-perftest-image-template -- bash -c 'sed -i s/1/0/ /etc/apt/apt.conf.d/10periodic 2> /dev/null || true'
 
 echo " · Installing needed and most likely needed packages"
-lxc exec firebuild-perftest-image-template -- eatmydata apt-get install -qqy git python3 node-d3 graphviz build-essential
+lxc exec firebuild-perftest-image-template -- eatmydata apt-get install -qqy git python3 graphviz build-essential
 
 if $WITH_DIFFOSCOPE; then
     lxc exec firebuild-perftest-image-template -- eatmydata apt-get install -qqy fakeroot diffoscope

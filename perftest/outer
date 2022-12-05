@@ -181,6 +181,7 @@ def build_firebuild():
 
   debug("Building firebuild")
   git_version = os.popen("git -C " + fbdir + " describe --abbrev=8 HEAD").read().strip().lstrip("v")
+  os.system("lxc exec " + name + " -- sed -i \"s/^.*node-d3,/# node-d3,/\" /home/ubuntu/firebuild/debian/control")
   os.system("lxc exec --env DEBIAN_FRONTEND=noninteractive " + name + " -- eatmydata apt-get -yqq build-dep /home/ubuntu/firebuild")
   if args.build_firebuild_with_clang:
     os.system("lxc exec --env DEBIAN_FRONTEND=noninteractive " + name + " -- eatmydata apt-get -yqq install clang lld")
