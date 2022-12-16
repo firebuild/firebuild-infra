@@ -59,7 +59,7 @@ fi
 
 case $BASE_IMG in
     ubuntu*:focal)
-        PPAS="ppa:rbalint/xxhash"
+        PPAS="ppa:firebuild/build-deps"
         ;;
     *)
         PPAS=""
