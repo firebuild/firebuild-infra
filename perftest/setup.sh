@@ -27,7 +27,7 @@ echo "Active /proc/sys/kernel/core_pattern setting:"
 cat /proc/sys/kernel/core_pattern
 
 # install and configure lxd
-sudo apt-get install -y lxd
+sudo apt-get install -y lxd || sudo apt-get install -y lxd-installer
 
 # Choose default 'dir' storage backend, or anything other than 'zfs', see bug #311.
 sudo lxd init --auto
