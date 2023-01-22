@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  full-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+    - uses: actions/checkout@v3
+    - name: setup
+      run: |
+        env -C perftest ./setup.sh
+        sudo apt-get -y install eatmydata
+        sudo eatmydata apt-get -y install r-base-core
+    - name: test-firebuild
+      run: |
+        git clone https://github.com/firebuild/firebuild
+        # use sudo to get lxd group membership
+        sudo -u $USER env -C perftest ./outer -f ../firebuild json4s
+        env -C firebuild git reset --hard HEAD~1
+        sudo -u $USER env -C perftest ./outer -f ../firebuild json4s
+    - name: check-results
+      run: |
+        cat ~/buildtimes.csv
+        perftest/compare_builds.R ~/buildtimes.csv $(cut -d, -f3 ~/buildtimes.csv | tac)
