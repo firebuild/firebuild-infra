@@ -48,15 +48,7 @@ lxc delete --force firebuild-perftest-image-template 2> /dev/null || true
 lxc launch -p firebuild-perftest "$BASE_IMG" firebuild-perftest-image-template
 
 echo " · Waiting for system to start"
-case $BASE_IMG in
-    ubuntu*:bionic*|ubuntu*:focal*)
-        sleep 1
-        ;;
-    *)
-        # No sleep needed
-        ;;
-esac
-
+sleep 1
 lxc exec firebuild-perftest-image-template -- systemctl is-system-running --wait || true
 
 lxc exec firebuild-perftest-image-template -- sh -c 'echo "Acquire::Retries \"3\";" > /etc/apt/apt.conf.d/99-retry'
