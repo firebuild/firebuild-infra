@@ -64,8 +64,3 @@ grep -q api.snapcraft.io /etc/hosts || echo "127.0.0.1 api.snapcraft.io" | sudo 
 for f in $(find /sys/devices/system/cpu/ -name scaling_governor); do
     sudo sh -c "echo performance > $f"
 done
-
-# Disable after reboot. The kernel's default value is "performance" but
-# the "ondemand" service changes it. So let's disable the "ondemand"
-# service:
-sudo systemctl disable ondemand.service
