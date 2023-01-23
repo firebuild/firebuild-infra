@@ -59,6 +59,8 @@ esac
 
 lxc exec firebuild-perftest-image-template -- systemctl is-system-running --wait || true
 
+ARCHIVE_MIRROR=$(grep 'archive\.ubuntu\.com' /etc/apt/sources.list | sed 's|.*http://||;s|/.*||;q')
+[ -z "${ARCHIVE_MIRROR}" ] || lxc exec firebuild-perftest-image-template -- sh -c 'sed -i "s|[^/]*archive.ubuntu.com|'${ARCHIVE_MIRROR}'|" /etc/apt/sources.list'
 echo " · Adding deb-src entries to sources.list"
 lxc exec firebuild-perftest-image-template -- sh -c 'sed "s/^deb /deb-src /" < /etc/apt/sources.list > /etc/apt/sources.list.d/deb-src.list'
 
