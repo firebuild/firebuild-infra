@@ -356,9 +356,11 @@ def build_project(name, params):
     if not args.debugging:
       if not commits:
         restore_saved_tree(name, srcdir)
-      if not commits and warmup_vanilla_build:
+      if warmup_vanilla_build:
         debug("Warmup build «{}» without {}".format(name, build_tool))
         run_build_cmd("env -C " + srcdir + " CCACHE_DISABLE=1 " + cmd, timeout_minutes)
+        # Don't run warmup build multiple times
+        warmup_vanilla_build = False
         restore_saved_tree(name, srcdir)
       debug("Building «{}» without {}".format(name, build_tool))
       (status, times0) = run_build_cmd("env -C " + srcdir + " CCACHE_DISABLE=1 " + cmd, timeout_minutes)
