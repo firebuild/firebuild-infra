@@ -306,7 +306,7 @@ for test in tests_to_run:
                    "wireless-regdb",  # does not support parallel build, override_dh_auto_build should use && \ at the end of each line
                    "xfsprogs"   # does not support parallel build, runs ./configure two times in parallel
                    ]
-  if int(args.jobs) != 1 and name in skip_parallel:
+  if args.jobs != "1" and name in skip_parallel:
     debug("Skipping " + name + " because it does not support parallel building")
     continue
 
