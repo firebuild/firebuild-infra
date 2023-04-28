@@ -217,7 +217,7 @@ def debs_differ(dir1, dir2):
       diffoscope_failed = True
   return diffoscope_failed
 
-def build_with_firebuild(name, srcdir, commit, prep, build_tool, fbcachedir, ccachedir, cache_status, env_cmd, cmd, extra_fb_opts, build_number, timeout_minutes):
+def build_with_firebuild(name, srcdir, commit, prep, build_tool, fbcachedir, ccachedir, cache_status, env_vars, cmd, extra_fb_opts, build_number, timeout_minutes):
   if commit:
     os.system("git -C {} reset --hard {}".format(srcdir, commit))
     os.system("git -C {} clean -dxf".format(srcdir))
@@ -236,7 +236,17 @@ def build_with_firebuild(name, srcdir, commit, prep, build_tool, fbcachedir, cca
     firebuild_params += " " + extra_fb_opts
   firebuild_params += " --show-stats"
   firebuil_cmd = "firebuild{} -- ".format(firebuild_params) if not args.only_ccache else ""
-  (status, times) = run_build_cmd("{} {}{}".format(env_cmd, firebuil_cmd, cmd), timeout_minutes * timeout_multiplier)
+  environ_orig = {}
+  for k, v in env_vars.items():
+    if os.environ.get(k) is not None:
+      environ_orig[k] = os.environ[k]
+    os.environ[k] = v;
+  (status, times) = run_build_cmd("env -C {} {}{}".format(srcdir, firebuil_cmd, cmd), timeout_minutes * timeout_multiplier)
+  for k in env_vars:
+    if environ_orig.get(k):
+      os.environ[k] = environ_orig[k]
+    else:
+      os.environ.pop(k)
   if status == 0 and args.with_diffoscope:
     build_debs(srcdir)
     save_debs(srcdir, build_number)
@@ -344,7 +354,7 @@ def build_project(name, params):
     times1 = { "real": 0, "user": 0, "sys": 0 }
     times2 = { "real": 0, "user": 0, "sys": 0 }
 
-    env_cmd = "env -C {}{}".format(srcdir, " PATH=/usr/lib/ccache:$PATH" if (args.with_ccache or args.only_ccache) else "")
+    env_vars = {'PATH': "/usr/lib/ccache:" + os.environ['PATH']} if (args.with_ccache or args.only_ccache) else {}
     if args.only_ccache:
       build_tool = "ccache"
     elif args.with_ccache:
@@ -379,14 +389,14 @@ def build_project(name, params):
       if args.with_ccache or args.only_ccache:
         debug("Removing «" + ccachedir + "»")
         shutil.rmtree(ccachedir, ignore_errors=True)
-      (status, times1, cachesize1) = build_with_firebuild(name, srcdir, commits[0] if commits else None, prep, build_tool, fbcachedir, ccachedir, "empty cache", env_cmd, cmd, args.extra_fb_opts1, 1, timeout_minutes)
+      (status, times1, cachesize1) = build_with_firebuild(name, srcdir, commits[0] if commits else None, prep, build_tool, fbcachedir, ccachedir, "empty cache", env_vars, cmd, args.extra_fb_opts1, 1, timeout_minutes)
     else:
       return status
 
     # Phase 2: If the previous phase was okay, build with firebuild for the second time
     if status == 0:
       for commit in commits if commits else [None]:
-        (status, times2, cachesize2) = build_with_firebuild(name, srcdir, commit, prep, build_tool, fbcachedir, ccachedir, "from cache", env_cmd, cmd, args.extra_fb_opts2, 2, timeout_minutes)
+        (status, times2, cachesize2) = build_with_firebuild(name, srcdir, commit, prep, build_tool, fbcachedir, ccachedir, "from cache", env_vars, cmd, args.extra_fb_opts2, 2, timeout_minutes)
         # Write a CSV row
         if not args.debugging:
           write_csv_row(start_timestamp, os_codename, name, cmd, status, times0, times1, times2, cachesize1, cachesize2, jobs)
