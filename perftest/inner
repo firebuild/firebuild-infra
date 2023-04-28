@@ -73,6 +73,9 @@ parser.add_argument("--with-ccache",
 parser.add_argument("--only-ccache",
                     action="store_true",
                     help="Use ccache instead of firebuild")
+parser.add_argument("--ccache-is-sccache",
+                    action="store_true",
+                    help="Use sccache instead of ccache")
 parser.add_argument("--extra-fb-opts1",
                     help="Extra firebuild options for the 1st intercepted build. Use the --extra-fb-opts1=\"...\" notation.")
 parser.add_argument("--extra-fb-opts2",
@@ -118,6 +121,10 @@ timeout_multiplier = 2 if args.debugging else 1
 # time to wait before starting a measured step
 # this allows the system to settle from previous actions like finish pending writes
 settle_seconds = 5
+
+ccache = "sccache" if args.ccache_is_sccache else "ccache"
+sccache_path = "/home/ubuntu/.cargo/bin"
+sccache_realname = sccache_path + "/sccache"
 
 def run_build_cmd(cmd, timeout_minutes=0):
   start_monotonic = time.monotonic()
@@ -254,6 +261,15 @@ def build_with_firebuild(name, srcdir, commit, prep, build_tool, fbcachedir, cca
   cachesize = get_du(fbcachedir) + get_du(ccachedir)
   return (status, times, cachesize)
 
+def remove_cache_dirs(fbcachedir, ccachedir):
+  if not args.only_ccache:
+    debug("Removing «" + fbcachedir + "»")
+    shutil.rmtree(fbcachedir, ignore_errors=True)
+  if args.with_ccache or args.only_ccache:
+    if args.ccache_is_sccache:
+      os.system(sccache_realname + " --stop-server")
+    debug("Removing «" + ccachedir + "»")
+    shutil.rmtree(ccachedir, ignore_errors=True)
 
 def write_csv_row(start_timestamp, os_codename, name, cmd, status, times0, times1, times2, cachesize1, cachesize2, jobs):
   end_timestamp = int(time.time())
@@ -263,12 +279,20 @@ def write_csv_row(start_timestamp, os_codename, name, cmd, status, times0, times
     build_tool_version  = os.popen("firebuild --version | awk '/^Firebuild Git / {print $3}; /^Firebuild [^G]/ {print $2}'").read().strip()
     build_tool_timestamp = os.popen("date -d \"$(dpkg-parsechangelog -l /usr/share/doc/firebuild/changelog.gz -S Date)\" +%s").read().strip()
   else:
-    build_tool_timestamp = os.popen("date -d \"$(dpkg-parsechangelog -l /usr/share/doc/ccache/changelog.Debian.gz -S Date)\" +%s").read().strip()
+    if args.ccache_is_sccache:
+      # hardcode sccache 0.4.2's release date
+      # TODO(rbalint) look at sccache release timestamps somehow or drop timestamp use for build tools other than firebuild
+      build_tool_timestamp = os.popen("date -d \"2023-04-24\" +%s").read().strip()
+    else:
+      build_tool_timestamp = os.popen("date -d \"$(dpkg-parsechangelog -l /usr/share/doc/ccache/changelog.Debian.gz -S Date)\" +%s").read().strip()
 
   if args.with_ccache:
     build_tool_version += "+"
   if args.with_ccache or args.only_ccache:
-    build_tool_version +=  os.popen("ccache --version | awk '/ccache version / {print \"ccache-\" $3}'").read().strip()
+    if args.ccache_is_sccache:
+      build_tool_version += os.popen(sccache_realname + " --version | sed 's/ /-/'").read().strip()
+    else:
+      build_tool_version += os.popen("ccache --version | awk '/ccache version / {print \"ccache-\" $3}'").read().strip()
 
   with open(os.path.expanduser("~/buildtimes.csv"), "a") as csvfile:
     writer = csv.writer(csvfile, lineterminator='\n')
@@ -318,7 +342,7 @@ def build_project(name, params):
   dldir = builddir + "/" + name   # e.g. /home/ubuntu/perftest-build/mc
   srcdir = dldir + "/" + dirname  # e.g. /home/ubuntu/perftest-build/mc/mc-4.8.24
   fbcachedir = dldir + "/" + ".fbcache"
-  ccachedir = os.path.expanduser("~/.cache/ccache")
+  ccachedir = os.path.expanduser("~/.cache/{}".format(ccache))
   os.environ["FIREBUILD_CACHE_DIR"] = fbcachedir
   timeout_minutes = params["timeout_minutes"]
 
@@ -354,17 +378,27 @@ def build_project(name, params):
     times1 = { "real": 0, "user": 0, "sys": 0 }
     times2 = { "real": 0, "user": 0, "sys": 0 }
 
-    env_vars = {'PATH': "/usr/lib/ccache:" + os.environ['PATH']} if (args.with_ccache or args.only_ccache) else {}
+    env_vars = {}
+    if (args.with_ccache or args.only_ccache):
+      if args.ccache_is_sccache:
+        env_vars = {'PATH': sccache_path +":" + os.environ['PATH'],
+                    'CC': "sccache cc",
+                    'CXX': "sccache c++",
+                    'LD': "sccache ld",
+                    'RUSTC_WRAPPER': "sccache"}
+      else:
+        env_vars = {'PATH': "/usr/lib/ccache:" + os.environ['PATH']}
     if args.only_ccache:
-      build_tool = "ccache"
+      build_tool = ccache
     elif args.with_ccache:
-      build_tool = "firebuild+ccache"
+      build_tool = "firebuild+{}".format(ccache)
     else:
       build_tool = "firebuild"
 
     # Phase 0: Build without firebuild (or ccache)
     if not args.debugging:
       if not commits:
+        remove_cache_dirs(fbcachedir, ccachedir)
         restore_saved_tree(name, srcdir)
       if warmup_vanilla_build:
         debug("Warmup build «{}» without {}".format(name, build_tool))
@@ -383,12 +417,7 @@ def build_project(name, params):
 
     # Phase 1: If the previous phase was okay, build with firebuild for the first time
     if status == 0:
-      if not args.only_ccache:
-        debug("Removing «" + fbcachedir + "»")
-        shutil.rmtree(fbcachedir, ignore_errors=True)
-      if args.with_ccache or args.only_ccache:
-        debug("Removing «" + ccachedir + "»")
-        shutil.rmtree(ccachedir, ignore_errors=True)
+      remove_cache_dirs(fbcachedir, ccachedir)
       (status, times1, cachesize1) = build_with_firebuild(name, srcdir, commits[0] if commits else None, prep, build_tool, fbcachedir, ccachedir, "empty cache", env_vars, cmd, args.extra_fb_opts1, 1, timeout_minutes)
     else:
       return status
