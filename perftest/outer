@@ -94,6 +94,9 @@ parser.add_argument("--with-ccache",
 parser.add_argument("--only-ccache",
                     action="store_true",
                     help="Install and use ccache instead of firebuild")
+parser.add_argument("--ccache-is-sccache",
+                    action="store_true",
+                    help="Use sccache instead of ccache")
 parser.add_argument("--extra-fb-opts1",
                     help="Extra firebuild options for the 1st intercepted build. Use the --extra-fb-opts1=\"...\" notation.")
 parser.add_argument("--extra-fb-opts2",
@@ -322,13 +325,22 @@ for test in tests_to_run:
   container_name = get_container_full_name(name)
   params = tests[name] if test_type is None else {}
   build_deps = [name]
-  deps = [] if not args.with_ccache and not args.only_ccache else ["ccache"]
+  deps = []
+  if args.with_ccache or args.only_ccache:
+    if args.ccache_is_sccache:
+      deps += ["cargo", "libssl-dev"]
+    else:
+      deps += ["ccache"]
   if "deps" in params:
    deps.append(params["deps"])
   if args.timestamp_params:
        deps.append("moreutils")
 
   create_and_start_container(name, deps, build_deps, firebuild_debs_dir)
+
+  # Install sccache when needed.
+  if (args.with_ccache or args.only_ccache) and args.ccache_is_sccache:
+    os.system("lxc exec --user 1000 --group 1000 --cwd /home/ubuntu/ " + container_name + " -- cargo install sccache")
 
   # Run the test
   debug("Running test «" + name + "»")
@@ -338,6 +350,7 @@ for test in tests_to_run:
                      ("--generate-report " if args.generate_report else "") +
                      ("--with-ccache " if args.with_ccache else "") +
                      ("--only-ccache " if args.only_ccache else "") +
+                     ("--ccache-is-sccache " if args.ccache_is_sccache else "") +
                      ("--extra-fb-opts1=\"{}\" ".format(args.extra_fb_opts1) if args.extra_fb_opts1 else "") +
                      ("--extra-fb-opts2=\"{}\" ".format(args.extra_fb_opts2) if args.extra_fb_opts2 else "") +
                      ("--extra-version-string=\"{}\" ".format(args.extra_version_string) if args.extra_version_string else "") +
