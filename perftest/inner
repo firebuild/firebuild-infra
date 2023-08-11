@@ -289,7 +289,7 @@ def write_csv_row(start_timestamp, os_codename, name, cmd, status, times0, times
   build_tool_timestamp = ""
   if not args.only_ccache:
     build_tool_version  = os.popen("firebuild --version | awk '/^Firebuild Git / {print $3}; /^Firebuild [^G]/ {print $2}'").read().strip()
-    build_tool_timestamp = os.popen("date -d \"$(dpkg-parsechangelog -l /usr/share/doc/firebuild/changelog.gz -S Date)\" +%s").read().strip()
+    build_tool_timestamp = os.popen("date -d \"$(dpkg-parsechangelog -l /usr/share/doc/firebuild/changelog.Debian.gz -S Date)\" +%s").read().strip()
   else:
     if args.ccache_is_sccache:
       # hardcode sccache 0.4.2's release date
