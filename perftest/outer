@@ -130,6 +130,7 @@ if not os.path.isdir(fbdir):
   print('"' + fbdir + '" does not exist. Specify "-f DIR".', file=sys.stderr)
   sys.exit(1)
 
+lxc_exec_as_user = "lxc exec --user 1000 --group 1000 --env HOME=/home/ubuntu"
 
 def debug(str):
   print(" 🔹 " + str, file=sys.stderr, flush=True)
@@ -194,7 +195,7 @@ def create_and_start_container(short_name, pkgs, build_deps, firebuild_debs_dir=
 
   debug("Copying up the fb-infra repo")
   # "lxc file push --recursive" is too slow, cannot set the uid/gid, and cannot strip a directory component
-  os.system("tar c -C .. --transform=s@^[.]/@fb-infra/@ . 2>/dev/null | lxc exec --user 1000 --group 1000 --cwd /home/ubuntu " + name + " -- tar x")
+  os.system("tar c -C .. --transform=s@^[.]/@fb-infra/@ . 2>/dev/null | " + lxc_exec_as_user + " --cwd /home/ubuntu " + name + " -- tar x")
 
 def build_firebuild():
   create_and_start_container("firebuild", ["devscripts"], [])
@@ -202,7 +203,7 @@ def build_firebuild():
 
   debug("Copying up the firebuild repo")
   # "lxc file push --recursive" is too slow, cannot set the uid/gid, and cannot strip a directory component
-  os.system("tar c -C " + fbdir + " --transform=s@^[.]/@firebuild/@ . 2>/dev/null | lxc exec --user 1000 --group 1000 --cwd /home/ubuntu " + name + " -- tar x")
+  os.system("tar c -C " + fbdir + " --transform=s@^[.]/@firebuild/@ . 2>/dev/null | " + lxc_exec_as_user + " --cwd /home/ubuntu " + name + " -- tar x")
 
   debug("Building firebuild")
   git_version = os.popen("git -C " + fbdir + " describe --abbrev=8 HEAD").read().strip().lstrip("v")
@@ -211,10 +212,10 @@ def build_firebuild():
   if args.build_firebuild_with_clang:
     os.system("lxc exec --env DEBIAN_FRONTEND=noninteractive " + name + " -- eatmydata apt-get -yqq install clang lld")
   if args.sanitize:
-    if os.system("lxc exec --user 1000 --group 1000 --cwd /home/ubuntu/firebuild " + name +
+    if os.system(lxc_exec_as_user + " --cwd /home/ubuntu/firebuild " + name +
                  " -- sh -c \"printf '\n\noverride_dh_auto_configure:\n\tdh_auto_configure -- -DWITH_JEMALLOC=OFF -DSANITIZE=ON\n' >> debian/rules\"") != 0:
       return None
-  if os.system("lxc exec --user 1000 --group 1000 --cwd /home/ubuntu/firebuild " + name +
+  if os.system(lxc_exec_as_user + " --cwd /home/ubuntu/firebuild " + name +
                " -- sh -x -c 'git clean -dfx && EDITOR=touch  env DEBEMAIL=perftest@example.com dch -b -v{} && sed -i \"s/\\\\(^ -- .*>  \\\\).*/\\\\1{}/\" debian/changelog && env {} dpkg-buildpackage'".format(
                  git_version.replace("-","."), get_commit_timestamp(fbdir), deb_build_env(args.debugging, args.build_firebuild_with_clang))) != 0:
     return None
@@ -345,7 +346,7 @@ for test in tests_to_run:
 
   # Install sccache when needed.
   if (args.with_ccache or args.only_ccache) and args.ccache_is_sccache:
-    os.system("lxc exec --user 1000 --group 1000 --cwd /home/ubuntu/ " + container_name + " -- cargo install sccache")
+    os.system(lxc_exec_as_user + " --cwd /home/ubuntu/ " + container_name + " -- cargo install sccache")
 
   # Limit CPU usage.
   # TODO(rbalint) work with 1,3,4... jobs format
@@ -355,7 +356,7 @@ for test in tests_to_run:
 
   # Run the test
   debug("Running test «" + name + "»")
-  status = os.system("script -e -c 'lxc exec --user 1000 --group 1000 --cwd /home/ubuntu/fb-infra/perftest " +
+  status = os.system("script -e -c '" + lxc_exec_as_user + " --cwd /home/ubuntu/fb-infra/perftest " +
                      container_name + " -- ./inner " + ("--debugging " if args.debugging else "") +
                      "-j " + args.jobs + " " + ("--with-diffoscope " if args.with_diffoscope else "") +
                      ("--generate-report " if args.generate_report else "") +
