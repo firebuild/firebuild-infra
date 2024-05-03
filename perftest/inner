@@ -451,7 +451,7 @@ def build_project(name, params):
       if core_dumps:
         os.system("sudo apt-get install -qqy gdb")
       for core_dump in core_dumps:
-        if re.match("/var/tmp/core\.firebuild", core_dump):
+        if re.match("/var/tmp/core\\.firebuild", core_dump):
           binary = "/usr/bin/firebuild"
         else:
           binary = "/usr/lib/*/libfirebuild.so.?"
