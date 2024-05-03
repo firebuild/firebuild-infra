@@ -11,7 +11,7 @@ on:
 jobs:
   full-test:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
     - uses: actions/checkout@v3
     - name: setup
@@ -30,6 +30,9 @@ jobs:
       run: |
         cat ~/buildtimes.csv
         perftest/compare_builds.R ~/buildtimes.csv $(cut -d, -f3 ~/buildtimes.csv | tac)
+    - name: check with latest Ubuntu development version
+      run: |
+        sudo -u $USER env -C perftest ./create_template_image ubuntu-daily:devel
     - name: option combinations
       run: |
         sudo -u $USER env -C perftest ./outer -d -j3 --keep-log --stop-on-first-failure -r --extra-version-string "options-test" --extra-fb-opts='-d time' --extra-fb-opts2='-g -s' --compressed-cache-size --timestamp-params="-i %.S" --enable-tests --separate-deb-prep -f ../firebuild json4s --tests-conf=tests.conf
