@@ -52,6 +52,7 @@ sleep 1
 lxc exec firebuild-perftest-image-template -- systemctl is-system-running --wait || true
 
 lxc exec firebuild-perftest-image-template -- sh -c 'echo debconf debconf/frontend select Noninteractive | debconf-set-selections'
+lxc exec firebuild-perftest-image-template -- sh -c 'printf "Dpkg::Options:: \"--force-confdef\";\nDpkg::Options:: \"--force-confold\";\n" > /etc/apt/apt.conf.d/98-dpkg-confdef'
 
 lxc exec firebuild-perftest-image-template -- sh -c 'echo "Acquire::Retries \"3\";" > /etc/apt/apt.conf.d/99-retry'
 ARCHIVE_MIRROR=$(grep 'archive\.ubuntu\.com' /etc/apt/sources.list | sed 's|.*http://||;s|/.*||;q')
