@@ -208,9 +208,9 @@ def build_firebuild():
   debug("Building firebuild")
   git_version = os.popen("git -C " + fbdir + " describe --abbrev=8 HEAD").read().strip().lstrip("v")
   os.system("lxc exec " + name + " -- sed -i \"s/^.*node-d3,/# node-d3,/\" /home/ubuntu/firebuild/debian/control")
-  os.system("lxc exec " + name + " -- eatmydata apt-get -yqq build-dep /home/ubuntu/firebuild")
   if args.build_firebuild_with_clang:
     os.system("lxc exec " + name + " -- eatmydata apt-get -yqq install clang lld")
+  os.system("lxc exec " + name + " -- eatmydata apt-get -yqq build-dep /home/ubuntu/firebuild")
   if args.sanitize:
     if os.system(lxc_exec_as_user + " --cwd /home/ubuntu/firebuild " + name +
                  " -- sh -c \"printf '\n\noverride_dh_auto_configure:\n\tdh_auto_configure -- -DWITH_JEMALLOC=OFF -DSANITIZE=ON\n' >> debian/rules\"") != 0:
