@@ -132,8 +132,13 @@ if not os.path.isdir(fbdir):
 
 container_exec_as_ubuntu_params = "--user 1000 --group 1000 --env HOME=/home/ubuntu"
 
+if shutil.which("incus"):
+  container_mgr = "incus"
+else:
+  container_mgr = "lxc"
+
 def container_exec(name, cmd, user=None, extra_exec_params="", use_popen=False):
-  exec_cmd = "lxc exec {params} {extra_params} {name} -- {cmd}".format(
+  exec_cmd = container_mgr + " exec {params} {extra_params} {name} -- {cmd}".format(
     params=container_exec_as_ubuntu_params if user == "ubuntu" else "",
     extra_params=extra_exec_params,
     name=name,
@@ -180,12 +185,12 @@ def get_commit_timestamp(fbdir):
 def create_and_start_container(short_name, pkgs, build_deps, firebuild_debs_dir=None):
   name = get_container_full_name(short_name)
 
-  if os.system("lxc info " + name + " >/dev/null 2>&1") == 0:
+  if os.system(container_mgr + " info " + name + " >/dev/null 2>&1") == 0:
     stop_container(short_name)
     delete_container(short_name)
 
-  debug("Launching lxc instance «" + name + "»")
-  os.system("lxc launch -p firebuild-perftest firebuild-perftest-image-template " + name)
+  debug("Launching " + container_mgr + " instance «" + name + "»")
+  os.system(container_mgr + " launch -p firebuild-perftest firebuild-perftest-image-template " + name)
 
   debug("Waiting for system to start")
   time.sleep(0.5)
@@ -194,7 +199,7 @@ def create_and_start_container(short_name, pkgs, build_deps, firebuild_debs_dir=
   debug("Installing required packages")
   container_exec(name, "eatmydata apt-get update -qq")
   if firebuild_debs_dir:
-    os.system("lxc file push -r " + firebuild_debs_dir + " " + name + "/root/")
+    os.system(container_mgr + " file push -r " + firebuild_debs_dir + " " + name + "/root/")
     container_exec(name, "sh -c 'echo debconf firebuild/license-accepted select true | debconf-set-selections'")
     container_exec(name, "sh -c 'eatmydata apt-get -yqq install /root/*/*.*deb'")
     # make caching more deterministic
@@ -205,8 +210,8 @@ def create_and_start_container(short_name, pkgs, build_deps, firebuild_debs_dir=
     container_exec(name, "eatmydata apt-get -yqq install " + " ".join(pkgs))
 
   debug("Copying up the fb-infra repo")
-  # "lxc file push --recursive" is too slow, cannot set the uid/gid, and cannot strip a directory component
-  os.system("tar c -C .. --transform=s@^[.]/@fb-infra/@ . 2>/dev/null | lxc exec " \
+  # container_mgr + " file push --recursive" is too slow, cannot set the uid/gid, and cannot strip a directory component
+  os.system("tar c -C .. --transform=s@^[.]/@fb-infra/@ . 2>/dev/null | " + container_mgr + " exec " \
             + container_exec_as_ubuntu_params + " --cwd /home/ubuntu " + name + " -- tar x")
 
 def build_firebuild():
@@ -214,8 +219,8 @@ def build_firebuild():
   name = get_container_full_name("firebuild")
 
   debug("Copying up the firebuild repo")
-  # "lxc file push --recursive" is too slow, cannot set the uid/gid, and cannot strip a directory component
-  os.system("tar c -C " + fbdir + " --transform=s@^[.]/@firebuild/@ . 2>/dev/null | lxc exec " \
+  # lxc/incus file push --recursive" is too slow, cannot set the uid/gid, and cannot strip a directory component
+  os.system("tar c -C " + fbdir + " --transform=s@^[.]/@firebuild/@ . 2>/dev/null | " + container_mgr + " exec " \
             + container_exec_as_ubuntu_params + " --cwd /home/ubuntu " + name + " -- tar x")
 
   debug("Building firebuild")
@@ -235,7 +240,7 @@ def build_firebuild():
     return None
   container_exec(name, "sh -c 'mkdir /home/ubuntu/firebuild-debs && mv /home/ubuntu/*.deb /home/ubuntu/*.ddeb /home/ubuntu/firebuild-debs'")
   firebuild_debs_dir = tempfile.mkdtemp()
-  os.system("lxc file pull -r " + name + "/home/ubuntu/firebuild-debs " + firebuild_debs_dir)
+  os.system(container_mgr + " file pull -r " + name + "/home/ubuntu/firebuild-debs " + firebuild_debs_dir)
   os.system("mv " + firebuild_debs_dir + "/firebuild-debs/*.*deb " + firebuild_debs_dir)
   os.rmdir(os.path.join(firebuild_debs_dir, "firebuild-debs"))
   stop_container("firebuild")
@@ -245,7 +250,7 @@ def build_firebuild():
 # Retrieve the report
 def read_container_file(container, filename):
   name = get_container_full_name(container)
-  return os.popen("lxc exec " + name + " -- cat {} 2>/dev/null".format(filename)).read()
+  return os.popen(container_mgr + " exec " + name + " -- cat {} 2>/dev/null".format(filename)).read()
 
 # Retrieve if firebuild was run
 def get_firebuild_started(short_name):
@@ -257,16 +262,16 @@ def get_firebuild_started(short_name):
 def stop_container(short_name):
   name = get_container_full_name(short_name)
 
-  debug("Stopping lxc instance «" + name + "»")
-  os.system("lxc stop " + name)
+  debug("Stopping " + container_mgr + " instance «" + name + "»")
+  os.system(container_mgr + " stop " + name)
 
 
 # Delete the container
 def delete_container(short_name):
   name = get_container_full_name(short_name)
 
-  debug("Deleting lxc instance «" + name + "»")
-  os.system("lxc delete " + name)
+  debug("Deleting " + container_mgr + " instance «" + name + "»")
+  os.system(container_mgr + " delete " + name)
 
 
 # Rename the container
@@ -274,8 +279,8 @@ def rename_container(old_short_name, new_short_name):
   old_name = get_container_full_name(old_short_name)
   new_name = get_container_full_name(new_short_name)
 
-  debug("Renaming lxc instance «" + old_name + "» to «" + new_name + "»")
-  os.system("lxc rename " + old_name + " " + new_name)
+  debug("Renaming " + container_mgr + " instance «" + old_name + "» to «" + new_name + "»")
+  os.system(container_mgr + " rename " + old_name + " " + new_name)
 
 
 # Read the test definitions
@@ -366,11 +371,11 @@ for test in tests_to_run:
   # TODO(rbalint) work with 1,3,4... jobs format
   if len(args.jobs.split(",")) == 1 and args.jobs != str(os.cpu_count()):
     # Pin jobs to cores for consistent performance
-    os.system("lxc config set {} limits.cpu 0-{}".format(container_name, int(args.jobs) - 1))
+    os.system(container_mgr + " config set {} limits.cpu 0-{}".format(container_name, int(args.jobs) - 1))
 
   # Run the test
   debug("Running test «" + name + "»")
-  status = os.system("script -e -c 'lxc exec " + container_exec_as_ubuntu_params + " --cwd /home/ubuntu/fb-infra/perftest " +
+  status = os.system("script -e -c '" + container_mgr + " exec " + container_exec_as_ubuntu_params + " --cwd /home/ubuntu/fb-infra/perftest " +
                      container_name + " -- ./inner " + ("--debugging " if args.debugging else "") +
                      "-j " + args.jobs + " " + ("--with-diffoscope " if args.with_diffoscope else "") +
                      ("--generate-report " if args.generate_report else "") +
