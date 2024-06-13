@@ -34,8 +34,8 @@
 #
 # The sources for the test will be downloaded by this program.
 #
-# This script is meant to be run inside an LXC container, launched by "outer",
-# although you can run manually as well on your host (without doing any LXC stuff).
+# This script is meant to be run inside a  container, launched by "outer",
+# although you can run manually as well on your host (without doing any container stuff).
 #
 # This script must be started from its containing directory.
 #
@@ -358,7 +358,7 @@ def build_project(name, params):
   os.environ["FIREBUILD_CACHE_DIR"] = fbcachedir
   timeout_minutes = params["timeout_minutes"]
 
-  # Clean up previous stuff, in case of non-LXC build
+  # Clean up previous stuff, in case of non-container build
   shutil.rmtree(dldir, ignore_errors=True)
 
   debug("Downloading «" + name + "»")

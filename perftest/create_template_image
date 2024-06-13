@@ -23,7 +23,7 @@
 # Create an image that already contains some of the essential stuff,
 # including build-essential and whatever is needed to build firebuild.
 #
-# The lxc profile "firebuild-perftest" has to already exist.
+# The lxc/incus profile "firebuild-perftest" has to already exist.
 #
 # See README_SETUP.txt for further details.
 
@@ -41,37 +41,53 @@ while [ -n "$1" ]; do
     esac
 done
 
-BASE_IMG="${1:-ubuntu:jammy}"
+if which incus > /dev/null 2>&1; then
+    CONTAINER_MGR="incus"
+elif which lxc > /dev/null 2>&1; then
+    CONTAINER_MGR="lxc"
+else
+    echo "Could not find supported container manager!" >&2
+    exit 1
+fi
 
-echo " · Launching lxc instance"
-lxc delete --force firebuild-perftest-image-template 2> /dev/null || true
-lxc launch -p firebuild-perftest "$BASE_IMG" firebuild-perftest-image-template
+if [ "$CONTAINER_MGR" = "lxc" ]; then
+    BASE_IMG="${1:-ubuntu:jammy}"
+else
+    BASE_IMG="${1:-images:ubuntu/jammy/cloud}"
+fi
+
+CONTAINER="firebuild-perftest-image-template"
+CONTAINER_EXEC="$CONTAINER_MGR exec $CONTAINER --"
+
+echo " · Launching $CONTAINER_MGR instance"
+$CONTAINER_MGR delete --force $CONTAINER 2> /dev/null || true
+$CONTAINER_MGR launch -p firebuild-perftest "$BASE_IMG" $CONTAINER
 
 echo " · Waiting for system to start"
 sleep 1
-lxc exec firebuild-perftest-image-template -- systemctl is-system-running --wait || true
+$CONTAINER_EXEC systemctl is-system-running --wait || true
 
-lxc exec firebuild-perftest-image-template -- sh -c 'echo debconf debconf/frontend select Noninteractive | debconf-set-selections'
-lxc exec firebuild-perftest-image-template -- sh -c 'printf "Dpkg::Options:: \"--force-confdef\";\nDpkg::Options:: \"--force-confold\";\n" > /etc/apt/apt.conf.d/98-dpkg-confdef'
+$CONTAINER_EXEC sh -c 'echo debconf debconf/frontend select Noninteractive | debconf-set-selections'
+$CONTAINER_EXEC sh -c 'printf "Dpkg::Options:: \"--force-confdef\";\nDpkg::Options:: \"--force-confold\";\n" > /etc/apt/apt.conf.d/98-dpkg-confdef'
 
-lxc exec firebuild-perftest-image-template -- sh -c 'echo "Acquire::Retries \"3\";" > /etc/apt/apt.conf.d/99-retry'
+$CONTAINER_EXEC sh -c 'echo "Acquire::Retries \"3\";" > /etc/apt/apt.conf.d/99-retry'
 ARCHIVE_MIRROR=$(grep 'archive\.ubuntu\.com' /etc/apt/sources.list | sed 's|.*http://||;s|/.*||;q')
-[ -z "${ARCHIVE_MIRROR}" ] || lxc exec firebuild-perftest-image-template -- sh -c 'sed -i "s|[^/]*archive.ubuntu.com|'${ARCHIVE_MIRROR}'|" /etc/apt/sources.list'
+[ -z "${ARCHIVE_MIRROR}" ] || $CONTAINER_EXEC sh -c 'sed -i "s|[^/]*archive.ubuntu.com|'${ARCHIVE_MIRROR}'|" /etc/apt/sources.list'
 echo " · Adding deb-src entries to sources.list"
-lxc exec firebuild-perftest-image-template -- sh -c 'sed -i "s/Types: deb/Types: deb deb-src/" /etc/apt/sources.list.d/*.sources /etc/cloud/templates/sources.list.ubuntu.deb822.tmpl' || true
-lxc exec firebuild-perftest-image-template -- sh -c 'sed -i "s/# deb-src /deb-src /" /etc/apt/sources.list /etc/cloud/templates/sources.list.*.tmpl' || true
+$CONTAINER_EXEC sh -c 'sed -i "s/Types: deb/Types: deb deb-src/" /etc/apt/sources.list.d/*.sources /etc/cloud/templates/sources.list.ubuntu.deb822.tmpl' || true
+$CONTAINER_EXEC sh -c 'sed -i "s/# deb-src /deb-src /" /etc/apt/sources.list /etc/cloud/templates/sources.list.*.tmpl' || true
 
 if [ -n "$(apt-config dump | grep Proxy)" ]; then
-    apt-config dump | grep Proxy | lxc exec firebuild-perftest-image-template -- sh -c 'cat > /etc/apt/apt.conf.d/99-firebuild-apt-proxy'
+    apt-config dump | grep Proxy | $CONTAINER_EXEC sh -c 'cat > /etc/apt/apt.conf.d/99-firebuild-apt-proxy'
 fi
 
 # Always install phased updates to fix occasional uninstallability problems, like:
 # https://bugs.launchpad.net/ubuntu/+source/systemd/+bug/1979579
-echo 'APT::Get::Always-Include-Phased-Updates "true";' | lxc exec firebuild-perftest-image-template -- sh -c 'cat > /etc/apt/apt.conf.d/99-firebuild-phased-updates'
+echo 'APT::Get::Always-Include-Phased-Updates "true";' | $CONTAINER_EXEC sh -c 'cat > /etc/apt/apt.conf.d/99-firebuild-phased-updates'
 
-if lxc exec firebuild-perftest-image-template -- sh -c 'dpkg -l needrestart 2> /dev/null | grep -q "^i"'; then
+if $CONTAINER_EXEC sh -c 'dpkg -l needrestart 2> /dev/null | grep -q "^i"'; then
     echo " · Removing needrestart"
-    lxc exec firebuild-perftest-image-template -- eatmydata apt-get -y purge needrestart
+    $CONTAINER_EXEC eatmydata apt-get -y purge needrestart
 fi
 
 case $BASE_IMG in
@@ -89,61 +105,61 @@ esac
 if [ -n "$PPAS" ]; then
     echo " . Adding PPAs for backported and fixed packages"
     # run apt-get update before adding the PPAs to make sure that network is already up
-    lxc exec firebuild-perftest-image-template -- apt-get update -qq
+    $CONTAINER_EXEC apt-get update -qq
     for ppa in $PPAS; do
-        lxc exec firebuild-perftest-image-template -- add-apt-repository -y -n $ppa
+        $CONTAINER_EXEC add-apt-repository -y -n $ppa
     done
 fi
 
-lxc exec firebuild-perftest-image-template -- apt-get update -qq
-lxc exec firebuild-perftest-image-template -- apt-get install -yqq eatmydata
-lxc exec firebuild-perftest-image-template -- eatmydata apt-get upgrade -yqq
+$CONTAINER_EXEC apt-get update -qq
+$CONTAINER_EXEC apt-get install -yqq eatmydata
+$CONTAINER_EXEC eatmydata apt-get upgrade -yqq
 
 echo " · Disabling man-db creation"
-lxc exec firebuild-perftest-image-template -- sh -c 'echo man-db man-db/auto-update boolean false | debconf-set-selections'
+$CONTAINER_EXEC sh -c 'echo man-db man-db/auto-update boolean false | debconf-set-selections'
 
 echo " · Removing packages with background jobs likely interfering with tests"
-lxc exec firebuild-perftest-image-template -- eatmydata apt-get -yqq purge rsyslog unattended-upgrades || true
+$CONTAINER_EXEC eatmydata apt-get -yqq purge rsyslog unattended-upgrades || true
 
 # This fails LP: #1878674
-lxc exec firebuild-perftest-image-template -- eatmydata apt-get -yqq purge snapd || true
+$CONTAINER_EXEC eatmydata apt-get -yqq purge snapd || true
 
 echo " · Disabling APT updates"
-lxc exec firebuild-perftest-image-template -- bash -c 'sed -i s/1/0/ /etc/apt/apt.conf.d/10periodic 2> /dev/null || true'
+$CONTAINER_EXEC bash -c 'sed -i s/1/0/ /etc/apt/apt.conf.d/10periodic 2> /dev/null || true'
 
 echo " · Installing needed and most likely needed packages"
-lxc exec firebuild-perftest-image-template -- eatmydata apt-get install -qqy git python3 graphviz build-essential
+$CONTAINER_EXEC eatmydata apt-get install -qqy git python3 graphviz build-essential
 
 case $BASE_IMG in
     ubuntu*:bionic*)
         # firebuild needs those fresher dependencies to build on Bionic
-        lxc exec firebuild-perftest-image-template -- eatmydata apt-get install -qqy cmake debhelper/bionic-backports dwz/bionic-backports
+        $CONTAINER_EXEC eatmydata apt-get install -qqy cmake debhelper/bionic-backports dwz/bionic-backports
         ;;
 esac
 
 if $WITH_DIFFOSCOPE; then
-    lxc exec firebuild-perftest-image-template -- eatmydata apt-get install -qqy fakeroot diffoscope
+    $CONTAINER_EXEC eatmydata apt-get install -qqy fakeroot diffoscope
 fi
 
 echo " · Purging unneeded packages"
-lxc exec firebuild-perftest-image-template -- eatmydata apt-get -yqq autoremove || true
+$CONTAINER_EXEC eatmydata apt-get -yqq autoremove || true
 
 echo " · Creating ubuntu user if needed"
-lxc exec firebuild-perftest-image-template -- addgroup ubuntu --gid 1000 --disabled-password || true
-lxc exec firebuild-perftest-image-template -- adduser ubuntu --uid 1000 --gid 1000 --disabled-password --gecos "" || true
+$CONTAINER_EXEC addgroup ubuntu --gid 1000 --disabled-password || true
+$CONTAINER_EXEC adduser ubuntu --uid 1000 --gid 1000 --disabled-password --gecos "" || true
 
-echo " · Stopping lxc instance"
-lxc stop firebuild-perftest-image-template
+echo " · Stopping $CONTAINER_MGR instance"
+$CONTAINER_MGR stop firebuild-perftest-image-template
 
-if lxc image list | grep -qw firebuild-perftest-image-template; then
-  echo " · Removing previous lxc image"
-  lxc image delete firebuild-perftest-image-template
+if $CONTAINER_MGR image list | grep -qw firebuild-perftest-image-template; then
+  echo " · Removing previous $CONTAINER_MGR image"
+  $CONTAINER_MGR image delete firebuild-perftest-image-template
 fi
 
-echo " · Creating lxc image"
-lxc publish --compression none firebuild-perftest-image-template --alias firebuild-perftest-image-template
+echo " · Creating $CONTAINER_MGR image"
+$CONTAINER_MGR publish --compression none firebuild-perftest-image-template --alias firebuild-perftest-image-template
 
-echo " · Deleting lxc instance"
-lxc delete firebuild-perftest-image-template
+echo " · Deleting $CONTAINER_MGR instance"
+$CONTAINER_MGR delete firebuild-perftest-image-template
 
 echo " · Done"
