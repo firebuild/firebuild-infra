@@ -130,7 +130,18 @@ if not os.path.isdir(fbdir):
   print('"' + fbdir + '" does not exist. Specify "-f DIR".', file=sys.stderr)
   sys.exit(1)
 
-lxc_exec_as_user = "lxc exec --user 1000 --group 1000 --env HOME=/home/ubuntu"
+container_exec_as_ubuntu_params = "--user 1000 --group 1000 --env HOME=/home/ubuntu"
+
+def container_exec(name, cmd, user=None, extra_exec_params="", use_popen=False):
+  exec_cmd = "lxc exec {params} {extra_params} {name} -- {cmd}".format(
+    params=container_exec_as_ubuntu_params if user == "ubuntu" else "",
+    extra_params=extra_exec_params,
+    name=name,
+    cmd=cmd)
+  if use_popen:
+    return os.popen(exec_cmd)
+  else:
+    return os.system(exec_cmd)
 
 def debug(str):
   print(" 🔹 " + str, file=sys.stderr, flush=True)
@@ -178,24 +189,25 @@ def create_and_start_container(short_name, pkgs, build_deps, firebuild_debs_dir=
 
   debug("Waiting for system to start")
   time.sleep(0.5)
-  os.system("lxc exec " + name + " -- systemctl is-system-running --wait")
+  container_exec(name, "systemctl is-system-running --wait")
 
   debug("Installing required packages")
-  os.system("lxc exec " + name + " -- eatmydata apt-get update -qq")
+  container_exec(name, "eatmydata apt-get update -qq")
   if firebuild_debs_dir:
     os.system("lxc file push -r " + firebuild_debs_dir + " " + name + "/root/")
-    os.system("lxc exec " + name + " -- sh -c 'echo debconf firebuild/license-accepted select true | debconf-set-selections'")
-    os.system("lxc exec " + name + " -- sh -c 'eatmydata apt-get -yqq install /root/*/*.*deb'")
+    container_exec(name, "sh -c 'echo debconf firebuild/license-accepted select true | debconf-set-selections'")
+    container_exec(name, "sh -c 'eatmydata apt-get -yqq install /root/*/*.*deb'")
     # make caching more deterministic
-    os.system("lxc exec " + name + " -- sed -i 's|^min_cpu_time|//min_cpu_time|' /etc/firebuild.conf")
+    container_exec(name, "sed -i 's|^min_cpu_time|//min_cpu_time|' /etc/firebuild.conf")
   if build_deps:
-    os.system("lxc exec " + name + " -- eatmydata apt-get -yqq build-dep " + " ".join(build_deps))
+    container_exec(name, "eatmydata apt-get -yqq build-dep " + " ".join(build_deps))
   if pkgs:
-    os.system("lxc exec " + name + " -- eatmydata apt-get -yqq install " + " ".join(pkgs))
+    container_exec(name, "eatmydata apt-get -yqq install " + " ".join(pkgs))
 
   debug("Copying up the fb-infra repo")
   # "lxc file push --recursive" is too slow, cannot set the uid/gid, and cannot strip a directory component
-  os.system("tar c -C .. --transform=s@^[.]/@fb-infra/@ . 2>/dev/null | " + lxc_exec_as_user + " --cwd /home/ubuntu " + name + " -- tar x")
+  os.system("tar c -C .. --transform=s@^[.]/@fb-infra/@ . 2>/dev/null | lxc exec " \
+            + container_exec_as_ubuntu_params + " --cwd /home/ubuntu " + name + " -- tar x")
 
 def build_firebuild():
   create_and_start_container("firebuild", ["devscripts"], [])
@@ -203,23 +215,25 @@ def build_firebuild():
 
   debug("Copying up the firebuild repo")
   # "lxc file push --recursive" is too slow, cannot set the uid/gid, and cannot strip a directory component
-  os.system("tar c -C " + fbdir + " --transform=s@^[.]/@firebuild/@ . 2>/dev/null | " + lxc_exec_as_user + " --cwd /home/ubuntu " + name + " -- tar x")
+  os.system("tar c -C " + fbdir + " --transform=s@^[.]/@firebuild/@ . 2>/dev/null | lxc exec " \
+            + container_exec_as_ubuntu_params + " --cwd /home/ubuntu " + name + " -- tar x")
 
   debug("Building firebuild")
   git_version = os.popen("git -C " + fbdir + " describe --abbrev=8 HEAD").read().strip().lstrip("v")
-  os.system("lxc exec " + name + " -- sed -i \"s/^.*node-d3,/# node-d3,/\" /home/ubuntu/firebuild/debian/control")
+  container_exec(name, "sed -i \"s/^.*node-d3,/# node-d3,/\" /home/ubuntu/firebuild/debian/control")
   if args.build_firebuild_with_clang:
-    os.system("lxc exec " + name + " -- eatmydata apt-get -yqq install clang lld")
-  os.system("lxc exec " + name + " -- eatmydata apt-get -yqq build-dep /home/ubuntu/firebuild")
+    container_exec(name, "eatmydata apt-get -yqq install clang lld")
+  container_exec(name, "eatmydata apt-get -yqq build-dep /home/ubuntu/firebuild")
   if args.sanitize:
-    if os.system(lxc_exec_as_user + " --cwd /home/ubuntu/firebuild " + name +
-                 " -- sh -c \"printf '\n\noverride_dh_auto_configure:\n\tdh_auto_configure -- -DWITH_JEMALLOC=OFF -DSANITIZE=ON\n' >> debian/rules\"") != 0:
+    if container_exec(name, "sh -c \"printf '\n\noverride_dh_auto_configure:\n\tdh_auto_configure -- -DWITH_JEMALLOC=OFF -DSANITIZE=ON\n' >> debian/rules\"",
+                      user="ubuntu", extra_exec_params="--cwd /home/ubuntu/firebuild") != 0:
       return None
-  if os.system(lxc_exec_as_user + " --cwd /home/ubuntu/firebuild " + name +
-               " -- sh -x -c 'git clean -dfx && EDITOR=touch  env DEBEMAIL=perftest@example.com dch -b -v{} && sed -i \"s/\\\\(^ -- .*>  \\\\).*/\\\\1{}/\" debian/changelog && env {} dpkg-buildpackage'".format(
-                 git_version.replace("-","."), get_commit_timestamp(fbdir), deb_build_env(args.debugging, args.build_firebuild_with_clang))) != 0:
+  if container_exec(name,
+                    "sh -x -c 'git clean -dfx && EDITOR=touch  env DEBEMAIL=perftest@example.com dch -b -v{} && sed -i \"s/\\\\(^ -- .*>  \\\\).*/\\\\1{}/\" debian/changelog && env {} dpkg-buildpackage'".format(
+                      git_version.replace("-","."), get_commit_timestamp(fbdir), deb_build_env(args.debugging, args.build_firebuild_with_clang)),
+                    user="ubuntu", extra_exec_params="--cwd /home/ubuntu/firebuild") != 0:
     return None
-  os.system("lxc exec " + name + " -- sh -c 'mkdir /home/ubuntu/firebuild-debs && mv /home/ubuntu/*.deb /home/ubuntu/*.ddeb /home/ubuntu/firebuild-debs'")
+  container_exec(name, "sh -c 'mkdir /home/ubuntu/firebuild-debs && mv /home/ubuntu/*.deb /home/ubuntu/*.ddeb /home/ubuntu/firebuild-debs'")
   firebuild_debs_dir = tempfile.mkdtemp()
   os.system("lxc file pull -r " + name + "/home/ubuntu/firebuild-debs " + firebuild_debs_dir)
   os.system("mv " + firebuild_debs_dir + "/firebuild-debs/*.*deb " + firebuild_debs_dir)
@@ -236,7 +250,7 @@ def read_container_file(container, filename):
 # Retrieve if firebuild was run
 def get_firebuild_started(short_name):
   name = get_container_full_name(short_name)
-  return os.system("lxc exec " + name + " -- test -f /tmp/firebuild_started") == 0
+  return container_exec(name, "test -f /tmp/firebuild_started") == 0
 
 
 # Stop the container
@@ -346,7 +360,7 @@ for test in tests_to_run:
 
   # Install sccache when needed.
   if (args.with_ccache or args.only_ccache) and args.ccache_is_sccache:
-    os.system(lxc_exec_as_user + " --cwd /home/ubuntu/ " + container_name + " -- cargo install sccache")
+    container_exec(container_name, "cargo install sccache", extra_exec_params="--cwd /home/ubuntu/")
 
   # Limit CPU usage.
   # TODO(rbalint) work with 1,3,4... jobs format
@@ -356,7 +370,7 @@ for test in tests_to_run:
 
   # Run the test
   debug("Running test «" + name + "»")
-  status = os.system("script -e -c '" + lxc_exec_as_user + " --cwd /home/ubuntu/fb-infra/perftest " +
+  status = os.system("script -e -c 'lxc exec " + container_exec_as_ubuntu_params + " --cwd /home/ubuntu/fb-infra/perftest " +
                      container_name + " -- ./inner " + ("--debugging " if args.debugging else "") +
                      "-j " + args.jobs + " " + ("--with-diffoscope " if args.with_diffoscope else "") +
                      ("--generate-report " if args.generate_report else "") +
