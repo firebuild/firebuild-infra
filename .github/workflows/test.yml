@@ -10,7 +10,10 @@ on:
 
 jobs:
   full-test:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 40
     steps:
     - uses: actions/checkout@v3
@@ -32,13 +35,18 @@ jobs:
         perftest/compare_builds.R ~/buildtimes.csv $(cut -d, -f3 ~/buildtimes.csv | tac)
     - name: check with latest Ubuntu development version
       run: |
+        # skip check on Ubuntu development version with incus, because there are no such available images
+        (! which incus) || exit 0
         sudo -u $USER env -C perftest ./create_template_image ubuntu-daily:devel
     - name: option combinations
       run: |
         sudo -u $USER env -C perftest ./outer -d -j3 --build-firebuild-with-clang --keep-log --stop-on-first-failure -r --extra-version-string "options-test" --extra-fb-opts='-d time' --extra-fb-opts2='-g -s' --compressed-cache-size --timestamp-params="-i %.S" --enable-tests --separate-deb-prep -f ../firebuild json4s --tests-conf=tests.conf
     - name: check sanitization
       run: |
+        # Run sanitization check on incus only.
+        # Running it on LXD, too, would just execute the same test for no additional coverage
+        which incus || exit 0
         # run sanitization on last Ubuntu version where GCC's ASan was not affected by
         # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=110027
-        sudo -u $USER env -C perftest ./create_template_image ubuntu:mantic
+        sudo -u $USER env -C perftest ./create_template_image images:ubuntu/mantic/cloud
         sudo -u $USER env -C perftest ./outer -j3 --sanitize -r --extra-version-string "sanitized-test" --extra-fb-opts='-d time' -f ../firebuild json4s
