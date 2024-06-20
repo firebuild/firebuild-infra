@@ -105,8 +105,8 @@ args = parser.parse_args()
 
 # Prepend common options to run specific options
 if args.extra_fb_opts:
-  args.extra_fb_opts1 = args.extra_fb_opts + " {}".format(args.extra_fb_opts1) if args.extra_fb_opts1 else ""
-  args.extra_fb_opts2 = args.extra_fb_opts + " {}".format(args.extra_fb_opts2) if args.extra_fb_opts2 else ""
+  args.extra_fb_opts1 = args.extra_fb_opts + (" {}".format(args.extra_fb_opts1) if args.extra_fb_opts1 else "")
+  args.extra_fb_opts2 = args.extra_fb_opts + (" {}".format(args.extra_fb_opts2) if args.extra_fb_opts2 else "")
 
 def debug(str):
   print(" 🔸 " + str, file=sys.stderr, flush=True)
