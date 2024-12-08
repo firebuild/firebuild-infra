@@ -91,11 +91,11 @@ if $CONTAINER_EXEC sh -c 'dpkg -l needrestart 2> /dev/null | grep -q "^i"'; then
 fi
 
 case $BASE_IMG in
-    ubuntu*:bionic*)
+    *ubuntu*bionic*)
         # ubuntu-toolchain-r/test distributes GCC-10
         PPAS="ppa:firebuild/build-deps ppa:ubuntu-toolchain-r/test"
         ;;
-    ubuntu*:focal*)
+    *ubuntu*focal*)
         PPAS="ppa:firebuild/build-deps"
         ;;
     *)
@@ -131,7 +131,7 @@ echo " · Installing needed and most likely needed packages"
 $CONTAINER_EXEC eatmydata apt-get install -qqy git python3 graphviz build-essential
 
 case $BASE_IMG in
-    ubuntu*:bionic*)
+    *ubuntu*bionic*)
         # firebuild needs those fresher dependencies to build on Bionic
         $CONTAINER_EXEC eatmydata apt-get install -qqy cmake debhelper/bionic-backports dwz/bionic-backports
         ;;
