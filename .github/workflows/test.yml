@@ -48,5 +48,5 @@ jobs:
         which incus || exit 0
         # run sanitization on last Ubuntu version where GCC's ASan was not affected by
         # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=110027
-        sudo -u $USER env -C perftest ./create_template_image images:ubuntu/mantic/cloud
+        sudo -u $USER env -C perftest ./create_template_image images:ubuntu/jammy/cloud
         sudo -u $USER env -C perftest ./outer -j3 --sanitize -r --extra-version-string "sanitized-test" --extra-fb-opts='-d time' -f ../firebuild json4s
