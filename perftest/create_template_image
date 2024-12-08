@@ -128,7 +128,7 @@ echo " · Disabling APT updates"
 $CONTAINER_EXEC bash -c 'sed -i s/1/0/ /etc/apt/apt.conf.d/10periodic 2> /dev/null || true'
 
 echo " · Installing needed and most likely needed packages"
-$CONTAINER_EXEC eatmydata apt-get install -qqy git python3 graphviz build-essential
+$CONTAINER_EXEC eatmydata apt-get install -qqy git python3 build-essential
 
 case $BASE_IMG in
     *ubuntu*bionic*)
