@@ -360,6 +360,8 @@ for test in tests_to_run:
    deps.append(params["deps"])
   if args.timestamp_params:
        deps.append("moreutils")
+  if args.compressed_cache_size:
+       deps.append("zstd")
 
   create_and_start_container(name, deps, build_deps, firebuild_debs_dir)
 
