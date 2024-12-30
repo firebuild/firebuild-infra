@@ -17,11 +17,11 @@ jobs:
     timeout-minutes: 40
     steps:
     - uses: actions/checkout@v4
+    - uses: firebuild/apt-eatmydata-action@v1
     - name: setup
       run: |
         env -C perftest ./setup.sh
-        sudo apt-get -y install eatmydata
-        sudo eatmydata apt-get -y install r-base-core
+        sudo apt-get -y install r-base-core
     - name: test-firebuild
       run: |
         git clone https://github.com/firebuild/firebuild
