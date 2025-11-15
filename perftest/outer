@@ -225,7 +225,6 @@ def build_firebuild():
 
   debug("Building firebuild")
   git_version = os.popen("git -C " + fbdir + " describe --abbrev=8 HEAD").read().strip().lstrip("v")
-  container_exec(name, "sed -i \"s/^.*node-d3,/# node-d3,/\" /home/ubuntu/firebuild/debian/control")
   if args.build_firebuild_with_clang:
     container_exec(name, "eatmydata apt-get -yqq install clang lld")
   container_exec(name, "eatmydata apt-get -yqq build-dep /home/ubuntu/firebuild")
