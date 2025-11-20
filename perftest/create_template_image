@@ -106,8 +106,9 @@ PPAS="$PPAS ppa:firebuild/qemu-backports"
 
 if [ -n "$PPAS" ]; then
     echo " . Adding PPAs for backported and fixed packages"
-    # run apt-get update before adding the PPAs to make sure that network is already up
-    $CONTAINER_EXEC apt-get update -qq
+    # sleep a bit and run apt-get update before adding the PPAs to make sure that network is already up
+    [ -z "$GITHUB_ACTION" ]  || sleep 10
+    $CONTAINER_EXEC apt-get update
     for ppa in $PPAS; do
         $CONTAINER_EXEC add-apt-repository -y -n $ppa
     done
